@@ -51,7 +51,8 @@ const SCHEMA = {
 /* ---------- API ---------- */
 
 // Функции, которые может вызывать сайт.
-const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComment, uploadPhoto, getThumbs, getPhoto, renameMe };
+const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComment, uploadPhoto, getThumbs, getPhoto, renameMe,
+  savePush, removePush, getNews, testPush };
 let currentUser = null;
 
 function doGet() {
@@ -147,12 +148,12 @@ function getData() {
   read_('comments').forEach(c => {
     if (byId[c.itemId]) byId[c.itemId].comments.push({ id: c.id, author: c.author, date: c.date, text: c.text });
   });
-  return { me: user.name, members: members_(), criteria, again: AGAIN, items };
+  return { me: user.name, members: members_(), criteria, again: AGAIN, items, pushKey: vapidKeys_().pub };
 }
 
 function saveItem(d) {
   const user = me_();
-  return withLock_(() => {
+  const id = withLock_(() => {
     let it = null;
     if (d.id) {
       it = read_('items').find(x => x.id === d.id);
@@ -177,6 +178,8 @@ function saveItem(d) {
     write_('items', it);
     return it.id;
   });
+  if (!d.id) notify_({ type: 'item', author: user.name, itemId: id, name: String(d.name || '').trim() });
+  return id;
 }
 
 function deleteItem(id) {
@@ -194,7 +197,7 @@ function deleteItem(id) {
 /** Сохраняет оценку текущего пользователя и его «купил(а) бы снова» (по одной записи на человека на товар). */
 function saveReview(itemId, ratings, again) {
   const user = me_();
-  return withLock_(() => {
+  const news = withLock_(() => {
     const it = read_('items').find(x => x.id === itemId);
     if (!it) throw new Error('Товар не найден');
     const clean = {};
@@ -226,18 +229,26 @@ function saveReview(itemId, ratings, again) {
     it.created = new Date(it.created);
     if (it.bought) it.bought = new Date(it.bought);
     write_('items', it);
+    // Уведомляем только о первой оценке чужой покупки: о своей партнёр уже узнал, когда она появилась.
+    if (mine || it.author === user.name || !(Object.keys(clean).length || again)) return null;
+    const score = avg_(Object.values(clean));
+    return { type: 'review', author: user.name, itemId, name: it.name,
+      text: [score !== '' ? score + ' из 5' : '', again ? 'снова: ' + again.toLowerCase() : ''].filter(String).join(', ') };
   });
+  if (news) notify_(news);
 }
 
 function addComment(itemId, text) {
   const user = me_();
   text = String(text || '').trim();
   if (!text) return;
-  return withLock_(() => {
+  const name = withLock_(() => {
     const it = read_('items').find(x => x.id === itemId);
     if (!it) throw new Error('Товар не найден');
     write_('comments', { id: newId_(), itemId, itemName: it.name, author: user.name, date: new Date(), text });
+    return it.name;
   });
+  notify_({ type: 'comment', author: user.name, itemId, name, text: text.slice(0, 120) });
 }
 
 function deleteComment(id) {
@@ -307,12 +318,230 @@ function renameMe(newName) {
       range.setValues(range.getValues().map(r => [String(r[0]).split(', ')
         .map(s => (s.indexOf(user.name + ': ') === 0 ? newName + s.slice(user.name.length) : s)).join(', ')]));
     }
-    props.setProperty('KEY_' + newName, props.getProperty('KEY_' + user.name));
-    props.deleteProperty('KEY_' + user.name);
+    // Ключ входа, подписки на уведомления и отметка «что уже показано» переезжают на новое имя.
+    ['KEY_', 'SUBS_', 'SEEN_'].forEach(prefix => {
+      const v = props.getProperty(prefix + user.name);
+      if (v !== null) props.setProperty(prefix + newName, v);
+      props.deleteProperty(prefix + user.name);
+    });
+    const events = parse_(props.getProperty('EVENTS'), []);
+    events.forEach(e => { if (e.author === user.name) e.author = newName; if (e.to === user.name) e.to = newName; });
+    props.setProperty('EVENTS', JSON.stringify(events));
     props.setProperty('MEMBERS', JSON.stringify(list.map(n => (n === user.name ? newName : n))));
     user.name = newName;
     return newName;
   });
+}
+
+/* ---------- Пуш-уведомления ---------- */
+
+/** Сохраняет подписку этого устройства на уведомления (у человека может быть несколько устройств). */
+function savePush(sub) {
+  const user = me_();
+  if (!sub || !/^https:\/\//.test(sub.endpoint || '')) throw new Error('Неверная подписка');
+  return withLock_(() => {
+    const props = PropertiesService.getScriptProperties();
+    const subs = parse_(props.getProperty('SUBS_' + user.name), []).filter(s => s.endpoint !== sub.endpoint);
+    subs.push({ endpoint: sub.endpoint });
+    props.setProperty('SUBS_' + user.name, JSON.stringify(subs.slice(-5)));
+  });
+}
+
+function removePush(endpoint) {
+  const user = me_();
+  return withLock_(() => removeSub_(user.name, endpoint));
+}
+
+/** Отправляет уведомление самому себе — проверить, что всё настроено. */
+function testPush() {
+  const user = me_();
+  const sent = notify_({ type: 'test', author: 'Покупочки', to: user.name, name: 'Уведомления работают 🎉' }, [user.name]);
+  if (!sent) throw new Error('На этом аккаунте нет устройств с включёнными уведомлениями');
+  return sent;
+}
+
+/**
+ * Текст для уведомления. Пуш приходит без содержимого (так не нужно шифрование),
+ * и service worker на телефоне сразу спрашивает здесь, что именно произошло.
+ */
+function getNews() {
+  const user = me_();
+  const props = PropertiesService.getScriptProperties();
+  const events = parse_(props.getProperty('EVENTS'), [])
+    .filter(e => e.author !== user.name && (!e.to || e.to === user.name));
+  const seen = Number(props.getProperty('SEEN_' + user.name) || 0);
+  const e = events.find(x => x.t > seen) || events[events.length - 1];
+  if (!e) return null;
+  props.setProperty('SEEN_' + user.name, String(Math.max(seen, e.t)));
+  const what = { item: 'новая покупочка', comment: 'новый комментарий', review: 'оценка вашей покупочки', test: 'проверка' }[e.type] || 'что-то новое';
+  const body = e.type === 'comment' ? e.name + ' — «' + e.text + '»' : e.text ? e.name + ' — ' + e.text : e.name;
+  return { title: e.author + ': ' + what, body, tag: e.type + '-' + e.t, url: e.itemId ? './?item=' + encodeURIComponent(e.itemId) : './' };
+}
+
+/** Запоминает событие и будит устройства остальных участников. Ошибки уведомлений не мешают сохранению. */
+function notify_(event, to) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const events = parse_(props.getProperty('EVENTS'), []);
+    events.push(Object.assign({ t: Date.now() }, event));
+    props.setProperty('EVENTS', JSON.stringify(events.slice(-30)));
+    return pushTo_(to || members_().filter(n => n !== event.author));
+  } catch (e) {
+    console.error('Уведомление не отправлено: ' + e);
+    if (to) throw e;
+    return 0;
+  }
+}
+
+function pushTo_(names) {
+  const props = PropertiesService.getScriptProperties();
+  const keys = vapidKeys_();
+  const jwts = {};
+  const reqs = [], owners = [];
+  names.forEach(name => parse_(props.getProperty('SUBS_' + name), []).forEach(sub => {
+    const aud = sub.endpoint.match(/^https:\/\/[^/]+/)[0];
+    jwts[aud] = jwts[aud] || vapidJwt_(aud, keys.priv);
+    reqs.push({ url: sub.endpoint, method: 'post', muteHttpExceptions: true,
+      headers: { Authorization: 'vapid t=' + jwts[aud] + ', k=' + keys.pub, TTL: '86400', Urgency: 'high' } });
+    owners.push([name, sub.endpoint]);
+  }));
+  if (!reqs.length) return 0;
+  let sent = 0;
+  UrlFetchApp.fetchAll(reqs).forEach((res, i) => {
+    const code = res.getResponseCode();
+    if (code >= 200 && code < 300) sent++;
+    else if (code === 404 || code === 410) removeSub_(owners[i][0], owners[i][1]); // подписка больше не действует
+    else console.error('Пуш ' + code + ': ' + res.getContentText().slice(0, 200));
+  });
+  return sent;
+}
+
+function removeSub_(name, endpoint) {
+  const props = PropertiesService.getScriptProperties();
+  const subs = parse_(props.getProperty('SUBS_' + name), []).filter(s => s.endpoint !== endpoint);
+  props.setProperty('SUBS_' + name, JSON.stringify(subs));
+}
+
+/** Ключи VAPID: создаются один раз и хранятся в свойствах скрипта. Публичный ключ нужен сайту. */
+function vapidKeys_() {
+  const props = PropertiesService.getScriptProperties();
+  let priv = props.getProperty('VAPID_PRIVATE');
+  if (!priv) {
+    let d = 0n;
+    while (d === 0n) d = P256.mod(bytesToBig_(randomBytes_()), P256.N);
+    priv = d.toString(16);
+    const Q = P256.mul(d, P256.G);
+    props.setProperties({ VAPID_PRIVATE: priv, VAPID_PUBLIC: b64url_([4].concat(bigToBytes_(Q[0]), bigToBytes_(Q[1]))) });
+  }
+  return { priv, pub: props.getProperty('VAPID_PUBLIC') };
+}
+
+/** JWT для заголовка VAPID, подписанный ES256. */
+function vapidJwt_(aud, privHex) {
+  const enc = obj => b64url_(Utilities.newBlob(JSON.stringify(obj)).getBytes());
+  const input = enc({ typ: 'JWT', alg: 'ES256' }) + '.' +
+    enc({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: 'https://unseenmoviereviews.github.io/nashi-pokupki/' });
+  const hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, input, Utilities.Charset.UTF_8);
+  return input + '.' + b64url_(P256.sign(hash, BigInt('0x' + privHex)));
+}
+
+/** Запустите один раз в редакторе: создаст ключи уведомлений и попросит разрешение на отправку запросов. */
+function setupPush() {
+  Logger.log('Публичный ключ уведомлений: ' + vapidKeys_().pub);
+  UrlFetchApp.fetch('https://web.push.apple.com/', { muteHttpExceptions: true });
+  Logger.log('Готово: уведомления можно включать в приложении.');
+}
+
+/*
+ * ECDSA на кривой P-256 — в Apps Script её нет, поэтому реализована на BigInt
+ * (якобиевы координаты, a = −3). Используется только для подписи VAPID.
+ */
+const P256 = (() => {
+  const p = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+  const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+  const G = [BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296'),
+    BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5')];
+  const mod = (a, m) => { const r = a % m; return r < 0n ? r + m : r; };
+  const inv = (a, m) => {
+    let r0 = mod(a, m), r1 = m, s0 = 1n, s1 = 0n;
+    while (r1 !== 0n) {
+      const q = r0 / r1;
+      [r0, r1] = [r1, r0 - q * r1];
+      [s0, s1] = [s1, s0 - q * s1];
+    }
+    return mod(s0, m);
+  };
+  const dbl = P => {
+    if (!P || P[1] === 0n) return null;
+    const [X, Y, Z] = P;
+    const delta = mod(Z * Z, p), gamma = mod(Y * Y, p), beta = mod(X * gamma, p);
+    const alpha = mod(3n * (X - delta) * (X + delta), p);
+    const X3 = mod(alpha * alpha - 8n * beta, p);
+    const Z3 = mod((Y + Z) * (Y + Z) - gamma - delta, p);
+    const Y3 = mod(alpha * (4n * beta - X3) - 8n * gamma * gamma, p);
+    return [X3, Y3, Z3];
+  };
+  const add = (P, Q) => {
+    if (!P) return Q;
+    if (!Q) return P;
+    const [X1, Y1, Z1] = P, [X2, Y2, Z2] = Q;
+    const Z1Z1 = mod(Z1 * Z1, p), Z2Z2 = mod(Z2 * Z2, p);
+    const U1 = mod(X1 * Z2Z2, p), U2 = mod(X2 * Z1Z1, p);
+    const S1 = mod(Y1 * Z2 * Z2Z2, p), S2 = mod(Y2 * Z1 * Z1Z1, p);
+    const H = mod(U2 - U1, p), r = mod(S2 - S1, p);
+    if (H === 0n) return r === 0n ? dbl(P) : null;
+    const HH = mod(H * H, p), HHH = mod(H * HH, p), V = mod(U1 * HH, p);
+    const X3 = mod(r * r - HHH - 2n * V, p);
+    const Y3 = mod(r * (V - X3) - S1 * HHH, p);
+    return [X3, Y3, mod(Z1 * Z2 * H, p)];
+  };
+  // k·(x, y) → аффинная точка [x, y]
+  const mul = (k, A) => {
+    let R = null;
+    const J = [A[0], A[1], 1n];
+    for (let i = k.toString(2), j = 0; j < i.length; j++) {
+      R = dbl(R);
+      if (i[j] === '1') R = add(R, J);
+    }
+    const zi = inv(R[2], p), zi2 = mod(zi * zi, p);
+    return [mod(R[0] * zi2, p), mod(R[1] * zi2 * zi, p)];
+  };
+  // Подпись хеша (32 байта) → r‖s, 64 байта. Нонс «с подстраховкой»: хеш ключа, сообщения и случайных байт.
+  const sign = (hash, d) => {
+    const e = mod(bytesToBig_(hash), N);
+    for (;;) {
+      const seed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
+        bigToBytes_(d).concat(Array.from(hash), randomBytes_()));
+      const k = mod(bytesToBig_(seed), N);
+      if (k === 0n) continue;
+      const r = mod(mul(k, G)[0], N);
+      if (r === 0n) continue;
+      const s = mod(inv(k, N) * (e + r * d), N);
+      if (s === 0n) continue;
+      return bigToBytes_(r).concat(bigToBytes_(s));
+    }
+  };
+  return { N, G, mod, mul, sign };
+})();
+
+// Криптостойкие случайные байты: UUID в Apps Script берутся из SecureRandom.
+function randomBytes_() {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, [0, 1, 2, 3].map(() => Utilities.getUuid()).join(''));
+}
+
+function bytesToBig_(bytes) {
+  return BigInt('0x' + Array.from(bytes, b => ((b + 256) % 256).toString(16).padStart(2, '0')).join('') || '0');
+}
+
+function bigToBytes_(n) {
+  const hex = n.toString(16).padStart(64, '0');
+  const out = [];
+  for (let i = 0; i < 64; i += 2) out.push(parseInt(hex.slice(i, i + 2), 16));
+  return out;
+}
+
+function b64url_(bytes) {
+  return Utilities.base64EncodeWebSafe(bytes.map(b => (b > 127 ? b - 256 : b))).replace(/=+$/, '');
 }
 
 /* ---------- Вспомогательные функции ---------- */

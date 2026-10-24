@@ -197,6 +197,7 @@ label{display:block;margin:16px 0 6px}
   </div>
   <div class="wrap"><div class="tagline"><span class="cap muted">купили · оценили · любим</span><span class="who cap" id="me"></span></div></div>
   <div class="wrap"><div class="install" id="install" hidden></div></div>
+  <div class="wrap"><div class="install" id="notify" hidden></div></div>
 </header>
 
 <div id="app"></div>
@@ -414,14 +415,15 @@ async function load() {
   D = await api.getData();
   // Порядковые номера по дате добавления: 01, 02…
   D.items.slice().sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); });
-  $('#me').innerHTML = `${ava(D.me)}<button class="link" id="rename" title="Сменить имя">${esc(D.me)} ✎</button>${DEMO_MODE ? '<span class="muted">· демо</span>' : '<button class="link cap muted" id="out">выйти</button>'}`;
-  $('#rename').onclick = showRename;
+  $('#me').innerHTML = `${ava(D.me)}<button class="link" id="rename" title="Профиль">${esc(D.me)} ✎</button><button class="link" id="bell" title="Уведомления" style="border:0">🔔</button>${DEMO_MODE ? '<span class="muted">· демо</span>' : '<button class="link cap muted" id="out">выйти</button>'}`;
+  $('#rename').onclick = $('#bell').onclick = showProfile;
   if ($('#out')) $('#out').onclick = () => { logout(); showLogin(); };
   setOpts($('#fCat'), 'Все категории', Object.keys(D.criteria));
   setOpts($('#fAgain'), 'Купили бы снова?', D.again);
   renderOverview();
   render();
   if (openId) showItem(openId);
+  syncPush();
 }
 
 function setOpts(sel, allLabel, list) {
@@ -687,13 +689,14 @@ function showForm(it) {
   });
 }
 
-function showRename() {
+function showProfile() {
   modal('Профиль', `
-    <h2>Как тебя зовут?</h2>
-    <label class="cap" for="nName">Имя</label><input id="nName" maxlength="24" value="${esc(D.me)}" autocomplete="nickname">
-    <p class="muted">Имя видно в оценках и комментариях. Всё, что ты уже добавил(а) и оценил(а), останется твоим.</p>
-    <div class="btns"><button class="btn rose" id="nSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>`);
-  $('#nName').focus();
+    <h2>Профиль</h2>
+    <div class="sec"><div class="cap"><span>Как тебя зовут?</span>${ava(D.me)}</div>
+      <input id="nName" maxlength="24" value="${esc(D.me)}" autocomplete="nickname" aria-label="Имя">
+      <p class="muted">Имя видно в оценках и комментариях. Всё, что ты уже добавил(а) и оценил(а), останется твоим.</p>
+      <div class="btns"><button class="btn" id="nSave">Сохранить имя</button></div></div>
+    <div class="sec"><div class="cap"><span>Уведомления</span><span>🔔</span></div><div id="pushBody" class="muted">Проверяем…</div></div>`);
   $('#nSave').onclick = busy(async () => {
     const name = $('#nName').value.trim();
     if (!name) { toast('Введите имя'); return; }
@@ -702,6 +705,77 @@ function showRename() {
     toast('Теперь ты — ' + name);
     await load();
   });
+  drawPushSection();
+}
+
+/* ---------- Пуш-уведомления ---------- */
+
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const partner = () => D.members.find(n => n !== D.me) || 'партнёр';
+// Если service worker не зарегистрировался, ready не наступит никогда — не ждём вечно.
+const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error('нет service worker')), 5000))]);
+const b64urlBytes = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+
+// on — включены на этом устройстве, off — можно включить, denied — запрещены в настройках,
+// install — на iPhone сначала нужно добавить на экран «Домой», none — недоступны.
+async function pushState() {
+  if (DEMO_MODE || !D.pushKey) return 'none';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return isIOS && !isStandalone() ? 'install' : 'none';
+  if (Notification.permission === 'denied') return 'denied';
+  const reg = await swReady();
+  return (await reg.pushManager.getSubscription()) ? 'on' : 'off';
+}
+
+async function enablePush() {
+  if (await Notification.requestPermission() !== 'granted') throw new Error('Уведомления не разрешены');
+  const reg = await swReady();
+  const sub = await reg.pushManager.getSubscription() ||
+    await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlBytes(D.pushKey) });
+  await api.savePush(sub.toJSON());
+}
+
+async function disablePush() {
+  const sub = await (await swReady()).pushManager.getSubscription();
+  if (!sub) return;
+  await api.removePush(sub.endpoint).catch(() => {});
+  await sub.unsubscribe();
+}
+
+// При каждом входе напоминаем серверу о подписке этого устройства и, если уведомления выключены, предлагаем включить.
+async function syncPush() {
+  const state = await pushState().catch(() => 'none');
+  if (state === 'on') {
+    const sub = await (await swReady()).pushManager.getSubscription();
+    api.savePush(sub.toJSON()).catch(() => {});
+  }
+  const box = $('#notify');
+  if (state !== 'off' || store.get('notifyHidden')) { box.hidden = true; return; }
+  box.innerHTML = `<span>🔔 Узнавать, когда ${esc(partner())} добавляет покупочки и пишет комментарии</span><button class="btn rose" id="notifyOn">Включить</button><button class="close" title="Скрыть" id="notifyClose">×</button>`;
+  box.hidden = false;
+  $('#notifyClose').onclick = () => { box.hidden = true; store.set('notifyHidden', '1'); };
+  $('#notifyOn').onclick = busy(async () => { await enablePush(); box.hidden = true; toast('Уведомления включены'); });
+}
+
+async function drawPushSection() {
+  const body = $('#pushBody');
+  if (!body) return;
+  const state = await pushState().catch(() => 'none');
+  const text = {
+    on: `Включены на этом устройстве. Придут, когда ${esc(partner())} добавит покупочку, напишет комментарий или оценит вашу.`,
+    off: 'Выключены на этом устройстве.',
+    denied: 'Уведомления запрещены. iPhone: Настройки → Уведомления → Покупочки. Android: настройки сайта в браузере.',
+    install: 'На iPhone уведомления работают, только когда «Покупочки» добавлены на экран «Домой»: Поделиться → На экран «Домой». Откройте приложение с иконки и включите здесь.',
+    none: DEMO_MODE ? 'В демо-режиме уведомления недоступны.' : isIOS ? 'Нужна iOS 16.4 или новее.' : 'Этот браузер не поддерживает уведомления.',
+  }[state];
+  const buttons = {
+    on: '<button class="btn" id="pushTest">Прислать тестовое</button><button class="btn ghost" id="pushOff">Выключить</button>',
+    off: '<button class="btn rose" id="pushOn">Включить уведомления</button>',
+  }[state] || '';
+  body.innerHTML = `<p style="margin:0">${text}</p>${buttons ? `<div class="btns">${buttons}</div>` : ''}`;
+  if ($('#pushOn')) $('#pushOn').onclick = busy(async () => { await enablePush(); $('#notify').hidden = true; toast('Уведомления включены'); await drawPushSection(); });
+  if ($('#pushOff')) $('#pushOff').onclick = busy(async () => { await disablePush(); toast('Уведомления выключены'); await drawPushSection(); });
+  if ($('#pushTest')) $('#pushTest').onclick = busy(async () => { await api.testPush(); toast('Отправлено — уведомление придёт через пару секунд'); });
 }
 
 // Уменьшает фото на устройстве перед отправкой; возвращает base64 JPEG.
@@ -834,6 +908,13 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
     show(`<span>Добавьте на экран «Домой»: нажмите <b>Поделиться</b> <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/></svg> → <b>На экран «Домой»</b></span>`);
   }
 })();
+
+// Ссылка из уведомления (?item=…) сразу открывает нужную покупку.
+const linkedItem = new URLSearchParams(location.search).get('item');
+if (linkedItem) {
+  openId = linkedItem;
+  history.replaceState(null, '', location.pathname + (DEMO_MODE ? '?demo' : ''));
+}
 
 // Ключ ищем во всех хранилищах и, если нашёлся, раскладываем обратно по всем трём.
 keyStore.get().then(k => {
