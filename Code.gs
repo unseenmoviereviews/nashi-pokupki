@@ -8,6 +8,8 @@
  * 2. Один раз запустите функцию setup() — в журнале появятся ключи входа.
  * 3. Разверните как веб-приложение (см. README.md).
  */
+// Стартовые имена. Потом каждый меняет своё имя в приложении — актуальный список хранится
+// в свойствах скрипта, и правка этой строки на уже работающее приложение не влияет.
 const MEMBERS = ['Я', 'Сонюшка'];
 
 // ID таблицы (из её адреса: /spreadsheets/d/ЭТОТ_ID/edit). Нужен, только если скрипт
@@ -40,7 +42,7 @@ const SCHEMA = {
     ['category', 'Категория'], ['again', 'Купили бы снова'], ['description', 'Описание'],
     ['avg', 'Средняя оценка'], ['photoLinks', 'Фото'], ['photos', '_photos']],
   reviews: [['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'], ['updated', 'Обновлено'],
-    ['avg', 'Средняя'], ['ratingsText', 'Оценки'], ['ratings', '_ratings']],
+    ['avg', 'Средняя'], ['ratingsText', 'Оценки'], ['ratings', '_ratings'], ['again', 'Купил(а) бы снова']],
   comments: [['id', 'ID'], ['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'],
     ['date', 'Дата'], ['text', 'Текст']],
   criteria: [['category', 'Категория'], ['list', 'Критерии (через запятую)']],
@@ -49,7 +51,7 @@ const SCHEMA = {
 /* ---------- API ---------- */
 
 // Функции, которые может вызывать сайт.
-const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComment, uploadPhoto, getThumbs, getPhoto };
+const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComment, uploadPhoto, getThumbs, getPhoto, renameMe };
 let currentUser = null;
 
 function doGet() {
@@ -101,7 +103,7 @@ function setup() {
   SHARE_WITH.forEach(email => ss.addViewer(email));
 
   // Личные ключи входа: создаются один раз, повторный запуск их не меняет.
-  MEMBERS.forEach(name => {
+  members_().forEach(name => {
     if (!props.getProperty('KEY_' + name)) props.setProperty('KEY_' + name, Utilities.getUuid().replace(/-/g, ''));
   });
   showKeys();
@@ -110,13 +112,13 @@ function setup() {
 /** Печатает ключи входа в журнал выполнения. */
 function showKeys() {
   const props = PropertiesService.getScriptProperties();
-  MEMBERS.forEach(name => Logger.log(name + ': ' + props.getProperty('KEY_' + name)));
+  members_().forEach(name => Logger.log(name + ': ' + props.getProperty('KEY_' + name)));
 }
 
 /** Если ключ утёк: запустите, затем showKeys() и войдите заново с новыми ключами. */
 function resetKeys() {
   const props = PropertiesService.getScriptProperties();
-  MEMBERS.forEach(name => props.setProperty('KEY_' + name, Utilities.getUuid().replace(/-/g, '')));
+  members_().forEach(name => props.setProperty('KEY_' + name, Utilities.getUuid().replace(/-/g, '')));
   showKeys();
 }
 
@@ -140,12 +142,12 @@ function getData() {
     return out;
   });
   read_('reviews').forEach(r => {
-    if (byId[r.itemId]) byId[r.itemId].reviews.push({ author: r.author, updated: r.updated, ratings: parse_(r.ratings, {}) });
+    if (byId[r.itemId]) byId[r.itemId].reviews.push({ author: r.author, updated: r.updated, ratings: parse_(r.ratings, {}), again: r.again || '' });
   });
   read_('comments').forEach(c => {
     if (byId[c.itemId]) byId[c.itemId].comments.push({ id: c.id, author: c.author, date: c.date, text: c.text });
   });
-  return { me: user.name, members: MEMBERS, criteria, again: AGAIN, items };
+  return { me: user.name, members: members_(), criteria, again: AGAIN, items };
 }
 
 function saveItem(d) {
@@ -157,9 +159,10 @@ function saveItem(d) {
       if (!it) throw new Error('Товар не найден — возможно, его удалили.');
       it.created = new Date(it.created);
     } else {
-      it = { id: newId_(), created: new Date(), author: user.name, avg: '' };
+      it = { id: newId_(), created: new Date(), author: user.name, avg: '', again: '' };
     }
-    ['name', 'url', 'shop', 'currency', 'category', 'again', 'description'].forEach(k => {
+    // «Купили бы снова» у каждого свой и сохраняется вместе с оценкой (saveReview).
+    ['name', 'url', 'shop', 'currency', 'category', 'description'].forEach(k => {
       it[k] = String(d[k] || '').trim();
     });
     // Дата приходит как ГГГГ-ММ-ДД; полдень — чтобы часовой пояс не сдвинул день.
@@ -188,8 +191,8 @@ function deleteItem(id) {
   });
 }
 
-/** Сохраняет оценку текущего пользователя (по одной на человека на товар). */
-function saveReview(itemId, ratings) {
+/** Сохраняет оценку текущего пользователя и его «купил(а) бы снова» (по одной записи на человека на товар). */
+function saveReview(itemId, ratings, again) {
   const user = me_();
   return withLock_(() => {
     const it = read_('items').find(x => x.id === itemId);
@@ -199,22 +202,27 @@ function saveReview(itemId, ratings) {
       const v = Math.round(Number(ratings[k]));
       if (v >= 1 && v <= 5) clean[String(k)] = v;
     });
+    again = AGAIN.indexOf(again) >= 0 ? again : '';
     const reviews = read_('reviews').filter(r => r.itemId === itemId);
     const mine = reviews.find(r => r.author === user.name);
-    if (Object.keys(clean).length) {
+    if (Object.keys(clean).length || again) {
       write_('reviews', {
         _row: mine && mine._row, itemId, itemName: it.name, author: user.name, updated: new Date(),
         avg: avg_(Object.values(clean)), ratingsText: Object.keys(clean).map(k => k + ': ' + clean[k]).join(', '),
-        ratings: JSON.stringify(clean),
+        ratings: JSON.stringify(clean), again,
       });
     } else if (mine) {
       sheet_('reviews').deleteRow(mine._row);
     }
-    // Пересчитываем общую среднюю товара по оценкам всех участников.
+    // Пересчитываем общую среднюю товара и сводку «купили бы снова» по всем участникам.
+    const others = reviews.filter(r => r.author !== user.name);
     const all = [];
-    reviews.filter(r => r.author !== user.name).forEach(r => all.push(...Object.values(parse_(r.ratings, {}))));
+    others.forEach(r => all.push(...Object.values(parse_(r.ratings, {}))));
     all.push(...Object.values(clean));
     it.avg = avg_(all);
+    const answers = others.filter(r => r.again).map(r => r.author + ': ' + r.again);
+    if (again) answers.push(user.name + ': ' + again);
+    it.again = answers.join(', ');
     it.created = new Date(it.created);
     if (it.bought) it.bought = new Date(it.bought);
     write_('items', it);
@@ -269,6 +277,44 @@ function getPhoto(id) {
   return 'data:image/jpeg;base64,' + Utilities.base64Encode(DriveApp.getFileById(id).getBlob().getBytes());
 }
 
+/**
+ * Меняет имя текущего пользователя: в списке участников, у ключа входа
+ * и в столбце «Автор» на всех листах, чтобы старые записи остались его.
+ */
+function renameMe(newName) {
+  const user = me_();
+  newName = String(newName || '').replace(/\s+/g, ' ').trim();
+  if (!newName) throw new Error('Имя не может быть пустым');
+  if (newName.length > 24) throw new Error('Слишком длинное имя — до 24 символов');
+  if (newName === user.name) return newName;
+  return withLock_(() => {
+    const list = members_();
+    if (list.indexOf(newName) >= 0) throw new Error('Это имя уже занято');
+    const props = PropertiesService.getScriptProperties();
+    ['items', 'reviews', 'comments'].forEach(key => {
+      const col = SCHEMA[key].findIndex(c => c[0] === 'author') + 1;
+      const sh = sheet_(key);
+      const n = sh.getLastRow() - 1;
+      if (n < 1) return;
+      const range = sh.getRange(2, col, n, 1);
+      range.setValues(range.getValues().map(r => [r[0] === user.name ? newName : r[0]]));
+    });
+    // Сводка «Купили бы снова» у товаров вида «Имя: Да, Имя: Нет».
+    const againCol = SCHEMA.items.findIndex(c => c[0] === 'again') + 1;
+    const itemRows = sheet_('items').getLastRow() - 1;
+    if (itemRows > 0) {
+      const range = sheet_('items').getRange(2, againCol, itemRows, 1);
+      range.setValues(range.getValues().map(r => [String(r[0]).split(', ')
+        .map(s => (s.indexOf(user.name + ': ') === 0 ? newName + s.slice(user.name.length) : s)).join(', ')]));
+    }
+    props.setProperty('KEY_' + newName, props.getProperty('KEY_' + user.name));
+    props.deleteProperty('KEY_' + user.name);
+    props.setProperty('MEMBERS', JSON.stringify(list.map(n => (n === user.name ? newName : n))));
+    user.name = newName;
+    return newName;
+  });
+}
+
 /* ---------- Вспомогательные функции ---------- */
 
 function me_() {
@@ -276,10 +322,16 @@ function me_() {
   return currentUser;
 }
 
+/** Текущий список имён: после переименований он хранится в свойствах скрипта. */
+function members_() {
+  const saved = PropertiesService.getScriptProperties().getProperty('MEMBERS');
+  return saved ? JSON.parse(saved) : MEMBERS.slice();
+}
+
 function userByKey_(key) {
   if (!key) return null;
   const props = PropertiesService.getScriptProperties();
-  const name = MEMBERS.find(n => props.getProperty('KEY_' + n) === String(key));
+  const name = members_().find(n => props.getProperty('KEY_' + n) === String(key));
   return name ? { name } : null;
 }
 
@@ -313,6 +365,8 @@ function read_(key) {
 function write_(key, o) {
   const row = SCHEMA[key].map(c => cell_(o[c[0]]));
   const sh = sheet_(key);
+  // Столбцы, добавленные в схему после создания листа, получают заголовок при первой записи.
+  if (sh.getLastColumn() < row.length) sh.getRange(1, 1, 1, row.length).setValues([SCHEMA[key].map(c => c[1])]).setFontWeight('bold');
   if (o._row) sh.getRange(o._row, 1, 1, row.length).setValues([row]);
   else sh.appendRow(row);
 }

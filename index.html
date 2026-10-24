@@ -123,8 +123,16 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 
 .score{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap}
 .score b{font:900 72px/.9 var(--display);letter-spacing:-.06em;color:var(--rose-ink)}
-.again{display:inline-block;margin:0 0 14px;padding:6px 12px;border-radius:99px;background:var(--paper);font-size:14px}
-.again b{font-family:var(--display)}
+.againrow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 16px}
+.again{display:inline-flex;align-items:center;gap:8px;padding:4px 12px 4px 4px;border-radius:99px;background:var(--paper);font-size:14px}
+.again b{font-family:var(--display);font-size:13px}
+.pick{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:10px 0 4px;margin-top:6px;border-top:1px dashed var(--hair)}
+.pick div{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.pick button{border:0;border-radius:99px;background:var(--paper);color:var(--ink);font:700 12px var(--display);padding:9px 12px;cursor:pointer}
+.pick button.on{background:var(--rose)}
+.pick button.on[data-a="Нет"]{background:var(--hair)}
+.pick button.on[data-a="Возможно"]{background:var(--lilac)}
+.who .link{font:inherit;color:inherit;text-decoration:none;border-bottom:2px dotted var(--muted);padding-bottom:1px}
 .keys{display:flex;gap:14px;margin-bottom:8px;font-size:13px}
 .keys span{display:inline-flex;align-items:center;gap:6px}
 .keys .ava{width:22px;height:22px;font-size:10px}
@@ -298,8 +306,25 @@ const pad = n => String(n).padStart(2, '0');
 const dots = (v, cls = '') => `<span class="dots ${cls}">${[1, 2, 3, 4, 5].map(n => `<i class="${v != null && n <= Math.round(v) ? 'on' : ''}"></i>`).join('')}</span>`;
 const opts = (list, sel) => (list.includes(sel) || !sel ? list : [sel, ...list])
   .map(v => `<option${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
-const sticker = again => !again ? '' :
-  `<span class="sticker ${again === 'Да' ? '' : again === 'Нет' ? 'no-again' : 'maybe'}">${again === 'Да' ? 'снова ♥' : again === 'Нет' ? 'больше нет' : 'может быть'}</span>`;
+// «Купили бы снова» у каждого свой и хранится в его оценке. В старых записях ответ был один на товар — считаем его ответом автора.
+function againBy(it) {
+  const o = {};
+  it.reviews.forEach(r => { if (r.again) o[r.author] = r.again; });
+  if (!Object.keys(o).length && D.again.includes(it.again)) o[it.author] = it.again;
+  return o;
+}
+function sticker(it) {
+  const a = Object.values(againBy(it));
+  if (!a.length) return '';
+  const all = v => a.every(x => x === v);
+  const [cls, text] = all('Да') ? ['', a.length > 1 ? 'оба снова ♥' : 'снова ♥']
+    : all('Нет') ? ['no-again', 'больше нет']
+    : a.includes('Да') && a.includes('Нет') ? ['maybe', 'мнения разные'] : ['maybe', 'может быть'];
+  return `<span class="sticker ${cls}">${text}</span>`;
+}
+const againPick = val => `<div class="pick" data-v="${esc(val || '')}"><span>Купил(а) бы снова?</span><div>${
+  D.again.map(a => `<button type="button" data-a="${esc(a)}" class="${a === val ? 'on' : ''}">${esc(a)}</button>`).join('')}</div></div>`;
+const readAgain = root => (root.querySelector('.pick') || { dataset: {} }).dataset.v || '';
 
 // Критерии товара: по категории + те, что уже встречаются в оценках (если список критериев меняли).
 function critOf(it) {
@@ -339,7 +364,8 @@ async function load() {
   D = await api.getData();
   // Порядковые номера по дате добавления: 01, 02…
   D.items.slice().sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); });
-  $('#me').innerHTML = `${ava(D.me)}<span>${esc(D.me)}</span>${DEMO_MODE ? '<span class="muted">· демо</span>' : '<button class="link cap muted" id="out">выйти</button>'}`;
+  $('#me').innerHTML = `${ava(D.me)}<button class="link" id="rename" title="Сменить имя">${esc(D.me)} ✎</button>${DEMO_MODE ? '<span class="muted">· демо</span>' : '<button class="link cap muted" id="out">выйти</button>'}`;
+  $('#rename').onclick = showRename;
   if ($('#out')) $('#out').onclick = () => { logout(); showLogin(); };
   setOpts($('#fCat'), 'Все категории', Object.keys(D.criteria));
   setOpts($('#fAgain'), 'Купили бы снова?', D.again);
@@ -359,8 +385,8 @@ function renderOverview() {
   const items = D.items;
   if (!items.length) { $('#overview').innerHTML = ''; return; }
   const all = avg(items.map(itemAvg).filter(v => v != null));
-  const answered = items.filter(it => it.again);
-  const yes = answered.length ? Math.round(answered.filter(it => it.again === 'Да').length / answered.length * 100) + '%' : '—';
+  const answers = items.flatMap(it => Object.values(againBy(it)));
+  const yes = answers.length ? Math.round(answers.filter(a => a === 'Да').length / answers.length * 100) + '%' : '—';
   const counts = {};
   items.forEach(it => { counts[it.category || 'Другое'] = (counts[it.category || 'Другое'] || 0) + 1; });
   const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -383,7 +409,7 @@ function render() {
     expensive: (a, b) => (priceNum(b) ?? -1) - (priceNum(a) ?? -1),
   };
   const items = D.items
-    .filter(it => (!cat || it.category === cat) && (!ag || it.again === ag) &&
+    .filter(it => (!cat || it.category === cat) && (!ag || Object.values(againBy(it)).includes(ag)) &&
       (!q || [it.name, it.shop, it.description].join(' ').toLowerCase().includes(q)))
     .sort(sorts[$('#fSort').value]);
   $('#list').innerHTML = items.length ? items.map(card).join('') : `<div class="empty">${emptyArt()}${
@@ -401,7 +427,7 @@ function card(it) {
   return `<div class="card" data-id="${esc(it.id)}">
     <div class="ph" style="--c:${catColor(it.category)}">
       ${p ? `<img data-thumb="${esc(p.thumb)}" alt="">` : `<span class="deco"></span>${icon(it.category)}`}
-      <span class="no">№${it.no}</span>${sticker(it.again)}
+      <span class="no">№${it.no}</span>${sticker(it)}
     </div>
     <div class="n">${esc(it.name)}</div>
     <div class="p num">${esc(money(it))}<span class="muted"> · ${esc(it.category)}</span></div>
@@ -463,6 +489,7 @@ function showItem(id) {
   it.reviews.forEach(r => { byAuthor[r.author] = r; });
   const people = [...new Set([...D.members, ...Object.keys(byAuthor)])];
   const mine = byAuthor[D.me] || { ratings: {} };
+  const ag = againBy(it);
   const a = itemAvg(it);
 
   // График: по каждому критерию полоса на каждого участника.
@@ -490,13 +517,15 @@ function showItem(id) {
 
     <div class="sec"><div class="cap"><span>Оценки</span><span class="muted">из 5</span></div>
       <div class="score"><b class="num">${a ?? '—'}</b>${dots(a, 'big')}</div>
-      ${it.again ? `<span class="again">Купили бы снова: <b>${esc(it.again)}</b></span>` : ''}
+      <div class="cap muted">Купили бы снова</div>
+      <div class="againrow">${people.map(p => `<span class="again">${ava(p)}${ag[p] ? `<b>${esc(ag[p])}</b>` : '<span class="muted">—</span>'}</span>`).join('')}</div>
       <div class="keys">${people.map(p => `<span>${ava(p)}${esc(p)}</span>`).join('')}</div>
       ${chart}
     </div>
 
     <div class="sec" id="myRate"><div class="cap"><span>Моя оценка</span>${ava(D.me)}</div>
       ${rateInputs(crit, mine.ratings)}
+      ${againPick(ag[D.me])}
       <div class="btns"><button class="btn" id="saveRate">Сохранить оценку</button></div></div>
 
     <div class="sec"><div class="cap"><span>Впечатления</span><span class="muted num">${pad(it.comments.length)}</span></div>
@@ -508,7 +537,7 @@ function showItem(id) {
   `);
 
   document.querySelectorAll('[data-photo]').forEach(b => { b.onclick = () => openPhoto(it.photos[+b.dataset.photo]); });
-  $('#saveRate').onclick = busy(async () => { await api.saveReview(id, readRates($('#myRate'))); toast('Оценка сохранена'); await load(); });
+  $('#saveRate').onclick = busy(async () => { await api.saveReview(id, readRates($('#myRate')), readAgain($('#myRate'))); toast('Оценка сохранена'); await load(); });
   $('#sendC').onclick = busy(async () => {
     const t = $('#newC').value.trim();
     if (!t) return;
@@ -528,7 +557,7 @@ function showItem(id) {
 function showForm(it) {
   const isNew = !it;
   const cats = Object.keys(D.criteria);
-  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', again: '', description: '', photos: [] };
+  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [] };
   // Уже загруженные фото — {full, thumb}; новые — {local, data, thumbData} до сохранения.
   const photos = it.photos.slice();
 
@@ -543,15 +572,12 @@ function showForm(it) {
     </div>
     <div class="two">
       <div><label class="cap" for="fCatS">Категория</label><select id="fCatS">${opts(cats, it.category)}</select></div>
-      <div><label class="cap" for="fAg">Купили бы снова?</label><select id="fAg"><option value="">—</option>${opts(D.again, it.again)}</select></div>
-    </div>
-    <div class="two">
-      <div><label class="cap" for="fShop">Магазин</label><input id="fShop" value="${esc(it.shop)}" placeholder="ZARA, Ozon…"></div>
       <div><label class="cap" for="fDate">Дата покупки</label><input id="fDate" type="date" value="${esc(it.bought)}"></div>
     </div>
+    <label class="cap" for="fShop">Магазин</label><input id="fShop" value="${esc(it.shop)}" placeholder="ZARA, Ozon…">
     <label class="cap" for="fUrl">Ссылка на товар</label><input id="fUrl" type="url" value="${esc(it.url)}" placeholder="https://…">
     <label class="cap" for="fDesc">Описание</label><textarea id="fDesc" placeholder="Чем понравилось, размер, цвет…">${esc(it.description)}</textarea>
-    ${isNew ? '<div class="sec" id="fRate"><div class="cap"><span>Сразу оценить</span><span class="muted">1–5</span></div><div id="fRateIn"></div></div>' : ''}
+    ${isNew ? `<div class="sec" id="fRate"><div class="cap"><span>Сразу оценить</span><span class="muted">1–5</span></div><div id="fRateIn"></div>${againPick('')}</div>` : ''}
     <div class="btns"><button class="btn rose" id="fSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>
   `);
 
@@ -592,15 +618,32 @@ function showForm(it) {
     }
     const id = await api.saveItem({
       id: it.id, name, url: $('#fUrl').value, shop: $('#fShop').value, bought: $('#fDate').value, price: $('#fPrice').value,
-      currency: $('#fCur').value, category: $('#fCatS').value, again: $('#fAg').value,
+      currency: $('#fCur').value, category: $('#fCatS').value,
       description: $('#fDesc').value, photos,
     });
     if (isNew) {
-      const r = readRates($('#fRate'));
-      if (Object.keys(r).length) await api.saveReview(id, r);
+      const r = readRates($('#fRate')), again = readAgain($('#fRate'));
+      if (Object.keys(r).length || again) await api.saveReview(id, r, again);
     }
     openId = id;
     toast('Сохранено');
+    await load();
+  });
+}
+
+function showRename() {
+  modal('Профиль', `
+    <h2>Как тебя зовут?</h2>
+    <label class="cap" for="nName">Имя</label><input id="nName" maxlength="24" value="${esc(D.me)}" autocomplete="nickname">
+    <p class="muted">Имя видно в оценках и комментариях. Всё, что ты уже добавил(а) и оценил(а), останется твоим.</p>
+    <div class="btns"><button class="btn rose" id="nSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>`);
+  $('#nName').focus();
+  $('#nSave').onclick = busy(async () => {
+    const name = $('#nName').value.trim();
+    if (!name) { toast('Введите имя'); return; }
+    await api.renameMe(name);
+    closeModal();
+    toast('Теперь ты — ' + name);
     await load();
   });
 }
@@ -632,6 +675,12 @@ document.addEventListener('keydown', e => {
 });
 $('#modal').addEventListener('click', e => {
   if (e.target.closest('[data-close]') || e.target.classList.contains('ov')) return closeModal();
+  const pick = e.target.closest('.pick button');
+  if (pick) {
+    const p = pick.closest('.pick');
+    p.dataset.v = p.dataset.v === pick.dataset.a ? '' : pick.dataset.a; // повторное нажатие снимает ответ
+    p.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.a === p.dataset.v));
+  }
   const box = e.target.closest('.in button');
   if (box) {
     const s = box.parentElement, n = +box.dataset.n;
@@ -652,37 +701,46 @@ const DEMO = (() => {
   const db = {
     files: {},
     items: [
-      { id: 'd1', created: day(5), author: 'Сонюшка', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', again: 'Да', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [],
-        reviews: [{ author: 'Сонюшка', ratings: { 'Качество': 4, 'Посадка': 5, 'Внешний вид': 5 } }, { author: 'Я', ratings: { 'Качество': 3, 'Посадка': 4, 'Цена/качество': 4 } }],
+      { id: 'd1', created: day(5), author: 'Сонюшка', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [],
+        reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Качество': 4, 'Посадка': 5, 'Внешний вид': 5 } }, { author: 'Я', again: 'Да', ratings: { 'Качество': 3, 'Посадка': 4, 'Цена/качество': 4 } }],
         comments: [{ id: 'c1', author: 'Сонюшка', date: day(4), text: 'Тебе очень идёт!' }, { id: 'c2', author: 'Я', date: day(3), text: 'Спасибо, ношу каждый день' }] },
-      { id: 'd2', created: day(3), author: 'Я', name: 'Беспроводные наушники', url: '', shop: 'Ozon', bought: day(60).slice(0, 10), price: 12990, currency: '₽', category: 'Техника', again: 'Возможно', description: '', photos: [],
-        reviews: [{ author: 'Я', ratings: { 'Функциональность': 5, 'Дизайн': 4, 'Цена/качество': 3 } }], comments: [] },
-      { id: 'd3', created: day(2), author: 'Сонюшка', name: 'Крем для рук с инжиром', url: '', shop: 'Л’Этуаль', bought: day(12).slice(0, 10), price: 890, currency: '₽', category: 'Косметика', again: 'Да', description: '', photos: [],
-        reviews: [{ author: 'Сонюшка', ratings: { 'Эффект': 5, 'Запах': 5, 'Текстура': 4 } }], comments: [] },
-      { id: 'd4', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Дом', again: 'Нет', description: '', photos: [],
-        reviews: [{ author: 'Сонюшка', ratings: { 'Качество': 3, 'Внешний вид': 4 } }], comments: [] },
+      { id: 'd2', created: day(3), author: 'Я', name: 'Беспроводные наушники', url: '', shop: 'Ozon', bought: day(60).slice(0, 10), price: 12990, currency: '₽', category: 'Техника', description: '', photos: [],
+        reviews: [{ author: 'Я', again: 'Возможно', ratings: { 'Функциональность': 5, 'Дизайн': 4, 'Цена/качество': 3 } }], comments: [] },
+      { id: 'd3', created: day(2), author: 'Сонюшка', name: 'Крем для рук с инжиром', url: '', shop: 'Л’Этуаль', bought: day(12).slice(0, 10), price: 890, currency: '₽', category: 'Косметика', description: '', photos: [],
+        reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Эффект': 5, 'Запах': 5, 'Текстура': 4 } }], comments: [] },
+      { id: 'd4', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Дом', description: '', photos: [],
+        reviews: [{ author: 'Сонюшка', again: 'Нет', ratings: { 'Качество': 3, 'Внешний вид': 4 } }, { author: 'Я', again: 'Да', ratings: {} }], comments: [] },
     ],
   };
   let n = 0;
+  let me = 'Я';
+  const members = ['Я', 'Сонюшка'];
   const find = id => db.items.find(x => x.id === id);
   return {
     getData: () => ({
-      me: 'Я', members: ['Я', 'Сонюшка'], again: ['Да', 'Возможно', 'Нет'], items: db.items,
+      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items,
       criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Обувь': ['Удобство', 'Качество', 'Внешний вид', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Дом': ['Качество', 'Внешний вид', 'Практичность', 'Цена/качество'], 'Косметика': ['Эффект', 'Запах', 'Текстура', 'Цена/качество'], 'Еда': ['Вкус', 'Качество', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'] },
     }),
     saveItem: d => {
       let it = find(d.id);
-      if (!it) db.items.push(it = { id: 'n' + (++n), created: new Date().toISOString(), author: 'Я', reviews: [], comments: [] });
+      if (!it) db.items.push(it = { id: 'n' + (++n), created: new Date().toISOString(), author: me, reviews: [], comments: [] });
       Object.assign(it, d, { id: it.id });
       return it.id;
     },
     deleteItem: id => { db.items = db.items.filter(x => x.id !== id); },
-    saveReview: (id, r) => {
+    saveReview: (id, r, again) => {
       const it = find(id);
-      it.reviews = it.reviews.filter(x => x.author !== 'Я');
-      if (Object.keys(r).length) it.reviews.push({ author: 'Я', ratings: r });
+      it.reviews = it.reviews.filter(x => x.author !== me);
+      if (Object.keys(r).length || again) it.reviews.push({ author: me, ratings: r, again: again || '' });
     },
-    addComment: (id, text) => { find(id).comments.push({ id: 'c' + (++n), author: 'Я', date: new Date().toISOString(), text }); },
+    renameMe: name => {
+      if (members.includes(name) && name !== me) throw new Error('Это имя уже занято');
+      db.items.forEach(it => [it, ...it.reviews, ...it.comments].forEach(o => { if (o.author === me) o.author = name; }));
+      members[members.indexOf(me)] = name;
+      me = name;
+      return name;
+    },
+    addComment: (id, text) => { find(id).comments.push({ id: 'c' + (++n), author: me, date: new Date().toISOString(), text }); },
     deleteComment: cid => db.items.forEach(it => { it.comments = it.comments.filter(c => c.id !== cid); }),
     uploadPhoto: (full, thumb) => { const id = 'f' + (++n); db.files[id] = 'data:image/jpeg;base64,' + thumb; return { full: id, thumb: id }; },
     getThumbs: ids => Object.fromEntries(ids.map(id => [id, db.files[id] || null])),
