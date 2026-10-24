@@ -427,8 +427,8 @@ function vapidKeys_() {
   const props = PropertiesService.getScriptProperties();
   let priv = props.getProperty('VAPID_PRIVATE');
   if (!priv) {
-    let d = 0n;
-    while (d === 0n) d = P256.mod(bytesToBig_(randomBytes_()), P256.N);
+    let d = N0;
+    while (d === N0) d = P256.mod(bytesToBig_(randomBytes_()), P256.N);
     priv = d.toString(16);
     const Q = P256.mul(d, P256.G);
     props.setProperties({ VAPID_PRIVATE: priv, VAPID_PUBLIC: b64url_([4].concat(bigToBytes_(Q[0]), bigToBytes_(Q[1]))) });
@@ -452,6 +452,9 @@ function setupPush() {
   Logger.log('Готово: уведомления можно включать в приложении.');
 }
 
+// Редактор Apps Script не понимает литералы вида 0n, поэтому малые BigInt заданы так.
+const N0 = BigInt(0), N1 = BigInt(1), N2 = BigInt(2), N3 = BigInt(3), N4 = BigInt(4), N8 = BigInt(8);
+
 /*
  * ECDSA на кривой P-256 — в Apps Script её нет, поэтому реализована на BigInt
  * (якобиевы координаты, a = −3). Используется только для подписи VAPID.
@@ -461,10 +464,10 @@ const P256 = (() => {
   const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
   const G = [BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296'),
     BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5')];
-  const mod = (a, m) => { const r = a % m; return r < 0n ? r + m : r; };
+  const mod = (a, m) => { const r = a % m; return r < N0 ? r + m : r; };
   const inv = (a, m) => {
-    let r0 = mod(a, m), r1 = m, s0 = 1n, s1 = 0n;
-    while (r1 !== 0n) {
+    let r0 = mod(a, m), r1 = m, s0 = N1, s1 = N0;
+    while (r1 !== N0) {
       const q = r0 / r1;
       [r0, r1] = [r1, r0 - q * r1];
       [s0, s1] = [s1, s0 - q * s1];
@@ -472,13 +475,13 @@ const P256 = (() => {
     return mod(s0, m);
   };
   const dbl = P => {
-    if (!P || P[1] === 0n) return null;
+    if (!P || P[1] === N0) return null;
     const [X, Y, Z] = P;
     const delta = mod(Z * Z, p), gamma = mod(Y * Y, p), beta = mod(X * gamma, p);
-    const alpha = mod(3n * (X - delta) * (X + delta), p);
-    const X3 = mod(alpha * alpha - 8n * beta, p);
+    const alpha = mod(N3 * (X - delta) * (X + delta), p);
+    const X3 = mod(alpha * alpha - N8 * beta, p);
     const Z3 = mod((Y + Z) * (Y + Z) - gamma - delta, p);
-    const Y3 = mod(alpha * (4n * beta - X3) - 8n * gamma * gamma, p);
+    const Y3 = mod(alpha * (N4 * beta - X3) - N8 * gamma * gamma, p);
     return [X3, Y3, Z3];
   };
   const add = (P, Q) => {
@@ -489,16 +492,16 @@ const P256 = (() => {
     const U1 = mod(X1 * Z2Z2, p), U2 = mod(X2 * Z1Z1, p);
     const S1 = mod(Y1 * Z2 * Z2Z2, p), S2 = mod(Y2 * Z1 * Z1Z1, p);
     const H = mod(U2 - U1, p), r = mod(S2 - S1, p);
-    if (H === 0n) return r === 0n ? dbl(P) : null;
+    if (H === N0) return r === N0 ? dbl(P) : null;
     const HH = mod(H * H, p), HHH = mod(H * HH, p), V = mod(U1 * HH, p);
-    const X3 = mod(r * r - HHH - 2n * V, p);
+    const X3 = mod(r * r - HHH - N2 * V, p);
     const Y3 = mod(r * (V - X3) - S1 * HHH, p);
     return [X3, Y3, mod(Z1 * Z2 * H, p)];
   };
   // k·(x, y) → аффинная точка [x, y]
   const mul = (k, A) => {
     let R = null;
-    const J = [A[0], A[1], 1n];
+    const J = [A[0], A[1], N1];
     for (let i = k.toString(2), j = 0; j < i.length; j++) {
       R = dbl(R);
       if (i[j] === '1') R = add(R, J);
@@ -513,11 +516,11 @@ const P256 = (() => {
       const seed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
         bigToBytes_(d).concat(Array.from(hash), randomBytes_()));
       const k = mod(bytesToBig_(seed), N);
-      if (k === 0n) continue;
+      if (k === N0) continue;
       const r = mod(mul(k, G)[0], N);
-      if (r === 0n) continue;
+      if (r === N0) continue;
       const s = mod(inv(k, N) * (e + r * d), N);
-      if (s === 0n) continue;
+      if (s === N0) continue;
       return bigToBytes_(r).concat(bigToBytes_(s));
     }
   };
