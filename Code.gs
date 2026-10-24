@@ -40,7 +40,8 @@ const SCHEMA = {
   items: [['id', 'ID'], ['created', 'Добавлено'], ['author', 'Автор'], ['name', 'Название'],
     ['url', 'Ссылка'], ['shop', 'Магазин'], ['bought', 'Дата покупки'], ['price', 'Цена'], ['currency', 'Валюта'],
     ['category', 'Категория'], ['again', 'Купили бы снова'], ['description', 'Описание'],
-    ['avg', 'Средняя оценка'], ['photoLinks', 'Фото'], ['photos', '_photos']],
+    ['avg', 'Средняя оценка'], ['photoLinks', 'Фото'], ['photos', '_photos'],
+    ['offersText', 'Цены в других магазинах'], ['offers', '_offers']],
   reviews: [['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'], ['updated', 'Обновлено'],
     ['avg', 'Средняя'], ['ratingsText', 'Оценки'], ['ratings', '_ratings'], ['again', 'Купил(а) бы снова']],
   comments: [['id', 'ID'], ['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'],
@@ -137,7 +138,7 @@ function getData() {
       id: it.id, created: it.created, author: it.author, name: it.name, url: it.url, shop: it.shop,
       bought: it.bought ? String(it.bought).slice(0, 10) : '',
       price: it.price, currency: it.currency, category: it.category, again: it.again,
-      description: it.description, photos: parse_(it.photos, []), reviews: [], comments: [],
+      description: it.description, photos: parse_(it.photos, []), offers: parse_(it.offers, []), reviews: [], comments: [],
     };
     byId[it.id] = out;
     return out;
@@ -175,6 +176,16 @@ function saveItem(d) {
     parse_(it.photos, []).filter(p => !photos.some(q => q.full === p.full)).forEach(trashPhoto_);
     it.photos = JSON.stringify(photos);
     it.photoLinks = photos.map(p => 'https://drive.google.com/file/d/' + p.full + '/view').join('\n');
+
+    // Цены в других магазинах — чтобы видеть, где дешевле.
+    const offers = (d.offers || []).map(o => ({
+      shop: String(o.shop || '').trim().slice(0, 60),
+      price: o.price === '' || o.price == null || isNaN(Number(o.price)) ? '' : Number(o.price),
+      currency: String(o.currency || '').trim().slice(0, 4),
+      url: String(o.url || '').trim().slice(0, 500),
+    })).filter(o => o.shop || o.price !== '').slice(0, 10);
+    it.offers = JSON.stringify(offers);
+    it.offersText = offers.map(o => (o.shop || '?') + ': ' + (o.price !== '' ? o.price + ' ' + o.currency : '—')).join('; ');
     write_('items', it);
     return it.id;
   });
@@ -598,7 +609,11 @@ function write_(key, o) {
   const row = SCHEMA[key].map(c => cell_(o[c[0]]));
   const sh = sheet_(key);
   // Столбцы, добавленные в схему после создания листа, получают заголовок при первой записи.
-  if (sh.getLastColumn() < row.length) sh.getRange(1, 1, 1, row.length).setValues([SCHEMA[key].map(c => c[1])]).setFontWeight('bold');
+  const had = sh.getLastColumn();
+  if (had < row.length) {
+    sh.getRange(1, 1, 1, row.length).setValues([SCHEMA[key].map(c => c[1])]).setFontWeight('bold');
+    SCHEMA[key].forEach((c, i) => { if (i >= had && c[1][0] === '_') sh.hideColumns(i + 1); });
+  }
   if (o._row) sh.getRange(o._row, 1, 1, row.length).setValues([row]);
   else sh.appendRow(row);
 }

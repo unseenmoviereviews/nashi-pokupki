@@ -139,6 +139,16 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .pick button.on[data-a="Нет"]{background:var(--ink);color:var(--bg)}
 .photo-btns{display:flex;gap:8px;flex-wrap:wrap}
 .photo-btns .btn{flex:1 1 140px;text-align:center;-webkit-tap-highlight-color:transparent}
+.offer{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--hair)}
+.offer:last-child{border-bottom:0}
+.offer b{font-family:var(--display);font-size:15px}
+.offer .diff{grid-column:2;text-align:right;font-size:12px}
+.badge{display:inline-block;font:700 10px var(--display);padding:3px 8px;border-radius:99px;background:var(--paper);margin-left:6px;vertical-align:1px;color:var(--ink)}
+.badge.best{background:var(--mint);color:#3b3236}
+.cheap-tag{display:inline-block;background:var(--mint);color:#3b3236;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px}
+.offer-row{display:grid;gap:6px;padding:10px 0;border-bottom:1px dashed var(--hair)}
+.offer-row .two{margin:0}
+.oDel{justify-self:start;border:0;background:none;color:var(--rose-ink);font:700 12px var(--display);cursor:pointer;padding:2px 0}
 .pick button.on[data-a="Возможно"]{background:var(--lilac)}
 .install{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 10px 10px 16px;border-radius:20px;background:var(--lilac);color:#3b3236;font-size:14px}
 .install[hidden]{display:none}
@@ -349,6 +359,44 @@ const avg = a => a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length *
 const itemAvg = it => avg(it.reviews.flatMap(r => Object.values(r.ratings)));
 const priceNum = it => it.price === '' || it.price == null ? null : Number(it.price);
 const money = it => priceNum(it) == null ? '—' : priceNum(it).toLocaleString('ru-RU') + ' ' + (it.currency || '');
+const fmtPrice = (n, cur) => Number(n).toLocaleString('ru-RU') + ' ' + (cur || '');
+
+/* ---------- Цены в разных магазинах ---------- */
+
+// Самое дешёвое предложение в той же валюте, что и цена покупки, если оно дешевле того, что заплатили.
+function cheaperOffer(it) {
+  const paid = priceNum(it);
+  if (paid == null) return null;
+  return (it.offers || []).filter(o => o.price !== '' && o.price != null && o.currency === it.currency && Number(o.price) < paid)
+    .sort((a, b) => a.price - b.price)[0] || null;
+}
+
+// Список «где купили + другие магазины», от дешёвых к дорогим, с пометкой самой низкой цены и разницей с покупкой.
+function pricesSection(it) {
+  if (!(it.offers || []).length) return '';
+  const paid = priceNum(it);
+  const rows = [{ shop: it.shop || 'Где купили', price: paid, currency: it.currency, url: it.url, mine: true }]
+    .concat(it.offers.map(o => ({ shop: o.shop || 'Магазин', price: o.price === '' || o.price == null ? null : Number(o.price), currency: o.currency, url: o.url })));
+  const cur = paid != null ? it.currency : (rows.find(r => r.price != null) || {}).currency;
+  const same = rows.filter(r => r.price != null && r.currency === cur);
+  const best = same.length > 1 ? Math.min(...same.map(r => r.price)) : null;
+  rows.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  return `<div class="sec"><div class="cap"><span>Цены в магазинах</span><span class="muted num">${pad(rows.length)}</span></div>${rows.map(r => {
+    const name = r.url ? `<a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener">${esc(r.shop)} ↗</a>` : esc(r.shop);
+    const diff = !r.mine && paid != null && r.price != null && r.currency === it.currency && r.price !== paid
+      ? `<span class="diff muted">${r.price < paid ? 'на ' + fmtPrice(paid - r.price, r.currency) + ' дешевле' : 'на ' + fmtPrice(r.price - paid, r.currency) + ' дороже'}</span>` : '';
+    return `<div class="offer"><span>${name}${r.mine ? '<span class="badge">купили здесь</span>' : ''}${best != null && r.price === best && r.currency === cur ? '<span class="badge best">дешевле всего</span>' : ''}</span>
+      <b class="num">${r.price != null ? esc(fmtPrice(r.price, r.currency)) : '—'}</b>${diff}</div>`;
+  }).join('')}</div>`;
+}
+
+const offerRow = o => `<div class="offer-row">
+  <input class="oShop" value="${esc(o.shop || '')}" placeholder="Магазин" aria-label="Магазин">
+  <div class="two"><input class="oPrice num" type="number" inputmode="decimal" step="any" min="0" value="${esc(o.price ?? '')}" placeholder="Цена" aria-label="Цена">
+    <select class="oCur" aria-label="Валюта">${opts(CURRENCIES, o.currency || CURRENCIES[0])}</select></div>
+  <input class="oUrl" type="url" value="${esc(o.url || '')}" placeholder="Ссылка (необязательно)" aria-label="Ссылка">
+  <button type="button" class="oDel">Убрать</button>
+</div>`;
 const fmtDate = s => s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 const when = it => it.bought || String(it.created).slice(0, 10);
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
@@ -482,7 +530,7 @@ function card(it) {
       <span class="no">№${it.no}</span>${sticker(it)}
     </div>
     <div class="n">${esc(it.name)}</div>
-    <div class="p num">${esc(money(it))}<span class="muted"> · ${esc(it.category)}</span></div>
+    <div class="p num">${esc(money(it))}${cheaperOffer(it) ? `<span class="cheap-tag" title="${esc(cheaperOffer(it).shop)}">↓ ${esc(fmtPrice(cheaperOffer(it).price, it.currency))}</span>` : `<span class="muted"> · ${esc(it.category)}</span>`}</div>
     <div class="r"><b class="num">${a ?? '—'}</b>${dots(a)}</div>
   </div>`;
 }
@@ -565,6 +613,7 @@ function showItem(id) {
     ${it.photos.length ? `<div class="gallery">${it.photos.map((p, i) => `<button type="button" data-photo="${i}" title="Открыть в полном размере"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}
     ${it.url ? `<a class="cap" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener">Ссылка на товар ↗</a>` : ''}
     ${it.description ? `<p class="desc">${esc(it.description)}</p>` : ''}
+    ${pricesSection(it)}
     <div class="cap muted" style="margin-top:12px;display:flex;align-items:center;gap:8px">${ava(it.author)} добавил${it.author === D.me ? 'и вы' : 'а ' + esc(it.author)}</div>
 
     <div class="sec"><div class="cap"><span>Оценки</span><span class="muted">из 5</span></div>
@@ -609,7 +658,7 @@ function showItem(id) {
 function showForm(it) {
   const isNew = !it;
   const cats = Object.keys(D.criteria);
-  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [] };
+  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [], offers: [] };
   // Уже загруженные фото — {full, thumb}; новые — {local, data, thumbData} до сохранения.
   const photos = it.photos.slice();
 
@@ -633,10 +682,19 @@ function showForm(it) {
     </div>
     <label class="cap" for="fShop">Магазин</label><input id="fShop" value="${esc(it.shop)}" placeholder="ZARA, Ozon…">
     <label class="cap" for="fUrl">Ссылка на товар</label><input id="fUrl" type="url" value="${esc(it.url)}" placeholder="https://…">
+    <div class="sec"><div class="cap"><span>Цены в других магазинах</span><span class="muted">где дешевле?</span></div>
+      <div id="offerRows">${(it.offers || []).map(offerRow).join('')}</div>
+      <div class="btns" style="margin-top:8px"><button type="button" class="btn ghost" id="addOffer">+ Добавить цену</button></div></div>
     <label class="cap" for="fDesc">Описание</label><textarea id="fDesc" placeholder="Чем понравилось, размер, цвет…">${esc(it.description)}</textarea>
     ${isNew ? `<div class="sec" id="fRate"><div class="cap"><span>Сразу оценить</span><span class="muted">1–5</span></div><div id="fRateIn"></div>${againPick('')}</div>` : ''}
     <div class="btns"><button class="btn rose" id="fSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>
   `);
+
+  $('#addOffer').onclick = () => {
+    $('#offerRows').insertAdjacentHTML('beforeend', offerRow({ currency: $('#fCur').value }));
+    $('#offerRows').lastElementChild.querySelector('.oShop').focus();
+  };
+  $('#offerRows').onclick = e => { const del = e.target.closest('.oDel'); if (del) del.closest('.offer-row').remove(); };
 
   const drawPhotos = () => {
     $('#fPh').innerHTML = photos.map((p, i) => `<div class="pv">${p.local
@@ -678,6 +736,10 @@ function showForm(it) {
       id: it.id, name, url: $('#fUrl').value, shop: $('#fShop').value, bought: $('#fDate').value, price: $('#fPrice').value,
       currency: $('#fCur').value, category: $('#fCatS').value,
       description: $('#fDesc').value, photos,
+      offers: [...document.querySelectorAll('#offerRows .offer-row')].map(r => ({
+        shop: r.querySelector('.oShop').value, price: r.querySelector('.oPrice').value,
+        currency: r.querySelector('.oCur').value, url: r.querySelector('.oUrl').value,
+      })).filter(o => o.shop.trim() || o.price !== ''),
     });
     if (isNew) {
       const r = readRates($('#fRate')), again = readAgain($('#fRate'));
@@ -831,7 +893,7 @@ const DEMO = (() => {
   const db = {
     files: {},
     items: [
-      { id: 'd1', created: day(5), author: 'Сонюшка', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [],
+      { id: 'd1', created: day(5), author: 'Сонюшка', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [], offers: [{ shop: 'Lamoda', price: 3499, currency: '₽', url: 'https://example.com' }, { shop: 'Wildberries', price: 4290, currency: '₽', url: '' }],
         reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Качество': 4, 'Посадка': 5, 'Внешний вид': 5 } }, { author: 'Я', again: 'Да', ratings: { 'Качество': 3, 'Посадка': 4, 'Цена/качество': 4 } }],
         comments: [{ id: 'c1', author: 'Сонюшка', date: day(4), text: 'Тебе очень идёт!' }, { id: 'c2', author: 'Я', date: day(3), text: 'Спасибо, ношу каждый день' }] },
       { id: 'd2', created: day(3), author: 'Я', name: 'Беспроводные наушники', url: '', shop: 'Ozon', bought: day(60).slice(0, 10), price: 12990, currency: '₽', category: 'Техника', description: '', photos: [],
