@@ -136,7 +136,9 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .pick div{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .pick button{border:0;border-radius:99px;background:var(--paper);color:var(--ink);font:700 12px var(--display);padding:9px 12px;cursor:pointer}
 .pick button.on{background:var(--rose)}
-.pick button.on[data-a="Нет"]{background:var(--hair)}
+.pick button.on[data-a="Нет"]{background:var(--ink);color:var(--bg)}
+.photo-btns{display:flex;gap:8px;flex-wrap:wrap}
+.photo-btns .btn{flex:1 1 140px;text-align:center;-webkit-tap-highlight-color:transparent}
 .pick button.on[data-a="Возможно"]{background:var(--lilac)}
 .install{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 10px 10px 16px;border-radius:20px;background:var(--lilac);color:#3b3236;font-size:14px}
 .install[hidden]{display:none}
@@ -239,7 +241,38 @@ const store = {
   get: k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
   set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) { /* приватный режим */ } },
 };
-const cfg = { api: API_URL || store.get('api'), key: store.get('key') };
+const cfg = { api: API_URL || store.get('api'), key: '' };
+
+// iPhone иногда стирает localStorage — особенно у сайта, добавленного на экран «Домой».
+// Поэтому ключ лежит в трёх местах (localStorage, cookie, IndexedDB): если уцелело хоть одно,
+// вход восстанавливается сам и заново раскладывается по всем трём.
+const keyStore = {
+  async get() {
+    return store.get('key') || keyCookie() || await keyDb('get') || '';
+  },
+  set(v) {
+    store.set('key', v);
+    const path = location.pathname.replace(/[^/]*$/, '');
+    document.cookie = `pk=${v ? encodeURIComponent(v) + ';max-age=34560000' : ';max-age=0'};path=${path};samesite=strict;secure`;
+    keyDb(v ? 'put' : 'delete', v);
+  },
+};
+const keyCookie = () => { const m = document.cookie.match(/(?:^|; )pk=([^;]*)/); return m ? decodeURIComponent(m[1]) : ''; };
+function keyDb(op, v) {
+  return new Promise(done => {
+    try {
+      const open = indexedDB.open('pokupochki', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('kv');
+      open.onerror = () => done('');
+      open.onsuccess = () => {
+        const st = open.result.transaction('kv', op === 'get' ? 'readonly' : 'readwrite').objectStore('kv');
+        const q = op === 'get' ? st.get('key') : op === 'put' ? st.put(v, 'key') : st.delete('key');
+        q.onsuccess = () => done(op === 'get' ? q.result || '' : '');
+        q.onerror = () => done('');
+      };
+    } catch (e) { done(''); }
+  });
+}
 
 async function call(fn, ...args) {
   if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO[fn](...args) ?? null));
@@ -283,9 +316,11 @@ function showLogin(error) {
     ${markSvg()}
     <h2>Привет!</h2>
     <div class="muted">Введите свой личный ключ. Он сохранится в этом браузере.</div>
-    <form id="login">
+    <form id="login" action="#" method="post">
       ${API_URL ? '' : `<label class="cap" for="lApi">Адрес API (…/exec)</label><input id="lApi" type="url" required value="${esc(cfg.api)}" placeholder="https://script.google.com/macros/s/…/exec">`}
-      <label class="cap" for="lKey">Ключ</label><input id="lKey" type="password" required autocomplete="current-password" value="${esc(cfg.key)}">
+      <!-- Логин для связки ключей iPhone: тогда она предложит сохранить ключ как пароль и подставит его по Face ID. -->
+      <input type="text" name="username" autocomplete="username" value="Покупочки" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+      <label class="cap" for="lKey">Ключ</label><input id="lKey" name="password" type="password" required autocomplete="current-password" value="${esc(cfg.key)}">
       ${error ? `<p style="color:var(--rose-ink);font-weight:700">${esc(error)}</p>` : ''}
       <div class="btns"><button class="btn rose" type="submit">Войти</button><a class="cap" href="?demo" style="align-self:center">Посмотреть демо</a></div>
     </form>
@@ -295,14 +330,16 @@ function showLogin(error) {
     if (!API_URL) cfg.api = $('#lApi').value.trim();
     cfg.key = $('#lKey').value.trim();
     store.set('api', API_URL ? '' : cfg.api);
-    store.set('key', cfg.key);
+    keyStore.set(cfg.key);
+    // Просим браузер не чистить данные сайта при нехватке места.
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     start();
   };
 }
 
 function logout() {
   cfg.key = '';
-  store.set('key', '');
+  keyStore.set('');
 }
 
 /* ---------- Расчёты и форматирование ---------- */
@@ -578,7 +615,12 @@ function showForm(it) {
     <h2>${isNew ? 'Новая покупочка' : esc(it.name)}</h2>
     <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="Например, льняная рубашка">
     <label class="cap">Фото</label><div class="gallery" id="fPh"></div>
-    <input type="file" id="fFile" accept="image/*" multiple>
+    <div class="photo-btns">
+      <label class="btn ghost" for="fCam">📷 Сфотографировать</label>
+      <label class="btn ghost" for="fFile">🖼 Из галереи</label>
+    </div>
+    <input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="fFile" accept="image/*" multiple hidden>
     <div class="two">
       <div><label class="cap" for="fPrice">Цена</label><input id="fPrice" class="num" type="number" inputmode="decimal" step="any" min="0" value="${esc(it.price)}"></div>
       <div><label class="cap" for="fCur">Валюта</label><select id="fCur">${opts(CURRENCIES, it.currency)}</select></div>
@@ -605,7 +647,8 @@ function showForm(it) {
     const rm = e.target.closest('[data-rm]');
     if (rm) { photos.splice(+rm.dataset.rm, 1); drawPhotos(); }
   };
-  $('#fFile').onchange = async e => {
+  // Камера и галерея: на телефоне capture сразу открывает камеру, на компьютере — выбор файла.
+  $('#fFile').onchange = $('#fCam').onchange = async e => {
     for (const f of e.target.files) {
       try { photos.push({ local: true, data: await resize(f, 1600, 0.85), thumbData: await resize(f, 600, 0.8) }); }
       catch (err) { toast('Не удалось прочитать ' + f.name); }
@@ -792,7 +835,12 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
   }
 })();
 
-start();
+// Ключ ищем во всех хранилищах и, если нашёлся, раскладываем обратно по всем трём.
+keyStore.get().then(k => {
+  cfg.key = k;
+  if (k) keyStore.set(k);
+  start();
+});
 </script>
 </body>
 </html>
