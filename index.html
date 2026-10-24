@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff;--ink:#111;--muted:#7a7a7a;--rule:#111;--hair:#dcdcdc;--red:#e30613;--paper:#f3f3f1;--c3:#9a9a9a;--c4:#cfcfcf;--c5:#555}
-@media (prefers-color-scheme:dark){:root{--bg:#0f0f0f;--ink:#f2f2f2;--muted:#8d8d8d;--rule:#f2f2f2;--hair:#2e2e2e;--red:#ff2b36;--paper:#1a1a1a;--c3:#777;--c4:#3d3d3d;--c5:#b5b5b5}}
+:root{--bg:#fbf8f4;--ink:#3d3538;--muted:#998e91;--rule:#3d3538;--hair:#ebe3dc;--red:#eb9aab;--red-ink:#b85873;--paper:#f4ede7;--c1:#9cc3e6;--c2:#f2a7b5;--c3:#a8dcc5;--c4:#cdbcef;--c5:#f7cf9c}
+@media (prefers-color-scheme:dark){:root{--bg:#1f1b1d;--ink:#efe7e9;--muted:#9d9396;--rule:#efe7e9;--hair:#352f31;--red:#f0a6b5;--red-ink:#f4b6c3;--paper:#2a2527;--c1:#8fb6d9;--c2:#eea1b0;--c3:#93c9b1;--c4:#b9a8dc;--c5:#e5bd8a}}
 *{box-sizing:border-box}
 body{margin:0;font:15px/1.4 Inter,"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:100px;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
@@ -28,8 +28,8 @@ h1 span{color:var(--red)}
 .subline{display:flex;justify-content:space-between;gap:12px;border-top:2px solid var(--rule);margin-top:16px;padding:8px 0}
 
 /* Статистика и график категорий */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
-.stat{padding:12px 12px 12px 0}
+.stats{background:var(--paper);display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.stat{padding:12px}
 .stat+.stat{border-left:1px solid var(--hair);padding-left:12px}
 .stat b{display:block;font-size:clamp(24px,6vw,40px);font-weight:900;letter-spacing:-.04em;line-height:1.05}
 .catbar{display:flex;height:14px;margin:16px 0 8px;gap:2px}
@@ -60,7 +60,7 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .card .r b{font-size:22px;font-weight:900;letter-spacing:-.03em;min-width:34px}
 .placeholder{width:42%;height:42%}
 .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-.tag.red{color:var(--red)}
+.tag.red{color:var(--red-ink)}
 
 /* Сегментная шкала 1–5 */
 .seg{display:inline-flex;gap:2px;vertical-align:middle}
@@ -71,7 +71,7 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 
 .empty,.loading{grid-column:1/-1;padding:60px 0;font-size:20px;font-weight:700;letter-spacing:-.02em}
 
-.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:64px;height:64px;border:0;background:var(--red);color:#fff;font:900 34px/1 Inter,Helvetica,sans-serif;cursor:pointer;z-index:6}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:64px;height:64px;border:0;background:var(--red);color:var(--ink);font:900 34px/1 Inter,Helvetica,sans-serif;cursor:pointer;z-index:6}
 
 /* Вход */
 .login{max-width:420px;padding:32px 0}
@@ -91,7 +91,7 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .gallery button,.gallery .pv{flex:0 0 auto;width:180px;height:180px;background:var(--paper);position:relative;overflow:hidden;border:0;padding:0;cursor:zoom-in}
 .gallery .pv{width:96px;height:96px;cursor:default}
 .gallery img{width:100%;height:100%;object-fit:cover;display:block}
-.pv button{position:absolute;top:0;right:0;border:0;width:26px;height:26px;background:var(--red);color:#fff;font-weight:700;cursor:pointer}
+.pv button{position:absolute;top:0;right:0;border:0;width:26px;height:26px;background:var(--red);color:var(--ink);font-weight:700;cursor:pointer}
 .lightbox{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out}
 .lightbox img{max-width:100%;max-height:100%;object-fit:contain}
 .sec{border-top:2px solid var(--rule);margin-top:28px;padding-top:8px}
@@ -99,7 +99,7 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .desc{white-space:pre-wrap;margin:14px 0 0;font-size:16px;max-width:52ch}
 
 .score{display:flex;align-items:flex-end;gap:16px;margin-bottom:14px;flex-wrap:wrap}
-.score b{font-size:84px;font-weight:900;letter-spacing:-.06em;line-height:.8;color:var(--red)}
+.score b{font-size:84px;font-weight:900;letter-spacing:-.06em;line-height:.8;color:var(--red-ink)}
 .again{margin:0 0 16px;font-size:15px}
 .again b{font-weight:900}
 .keys{display:flex;gap:14px;font-size:12px;margin-bottom:6px}
@@ -113,16 +113,16 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .rate{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--hair)}
 .rate .in{display:flex;gap:3px}
 .rate .in button{width:34px;height:34px;border:1px solid var(--ink);background:transparent;color:var(--ink);font:700 13px Inter,Helvetica,sans-serif;cursor:pointer;padding:0}
-.rate .in button.on{background:var(--ink);color:var(--bg)}
-.rate .in[data-v="5"] button.on{background:var(--red);border-color:var(--red);color:#fff}
+.rate .in button.on{background:var(--c4);border-color:var(--c4);color:var(--ink)}
+.rate .in[data-v="5"] button.on{background:var(--red);border-color:var(--red);color:var(--ink)}
 
 label{display:block;margin:18px 0 2px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .btn{border:2px solid var(--ink);background:var(--ink);color:var(--bg);font:700 13px Inter,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.08em;padding:13px 18px;cursor:pointer;border-radius:0}
 .btn:disabled{opacity:.5}
-.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.red{background:var(--red);border-color:var(--red);color:var(--ink)}
 .btn.ghost{background:transparent;color:var(--ink)}
-.btn.danger{background:transparent;border-color:transparent;color:var(--red);padding-left:0}
+.btn.danger{background:transparent;border-color:transparent;color:var(--red-ink);padding-left:0}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
 .cmt{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair)}
 .cmt p{margin:0;white-space:pre-wrap}
@@ -136,7 +136,7 @@ label{display:block;margin:18px 0 2px}
     <h1>Наши<br>покупки<span>.</span></h1>
     <svg viewBox="0 0 120 120" aria-hidden="true">
       <rect x="0" y="0" width="56" height="120" fill="currentColor"/>
-      <circle cx="78" cy="78" r="42" fill="#e30613"/>
+      <circle cx="78" cy="78" r="42" style="fill:var(--red)"/>
       <rect x="64" y="0" width="56" height="10" fill="currentColor"/>
     </svg>
   </div>
@@ -151,7 +151,7 @@ label{display:block;margin:18px 0 2px}
 const API_URL = '';
 
 const CURRENCIES = ['₽', '$', '€', '₸', 'Br', '₴'];
-const PALETTE = ['var(--ink)', 'var(--red)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
+const PALETTE = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
 const DEMO_MODE = new URLSearchParams(location.search).has('demo');
 let D = null;        // данные с сервера
 let openId = null;   // открытый товар
@@ -211,7 +211,7 @@ function showLogin(error) {
     <div class="muted">Введите свой личный ключ. Он сохранится в этом браузере.</div>
     ${API_URL ? '' : `<label class="cap" for="lApi">Адрес API (…/exec)</label><input id="lApi" type="url" required value="${esc(cfg.api)}" placeholder="https://script.google.com/macros/s/…/exec">`}
     <label class="cap" for="lKey">Ключ</label><input id="lKey" type="password" required autocomplete="current-password" value="${esc(cfg.key)}">
-    ${error ? `<p style="color:var(--red);font-weight:700">${esc(error)}</p>` : ''}
+    ${error ? `<p style="color:var(--red-ink);font-weight:700">${esc(error)}</p>` : ''}
     <div class="btns"><button class="btn red" type="submit">Войти</button><a class="cap" href="?demo" style="align-self:center">Посмотреть демо</a></div>
   </form></div>`;
   $('#login').onsubmit = async e => {
@@ -243,7 +243,7 @@ const pad = n => String(n).padStart(2, '0');
 const seg = (v, cls = '') => `<span class="seg ${cls}">${[1, 2, 3, 4, 5].map(n => `<i class="${v != null && n <= Math.round(v) ? 'on' : ''}"></i>`).join('')}</span>`;
 const opts = (list, sel) => (list.includes(sel) || !sel ? list : [sel, ...list])
   .map(v => `<option${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
-const PLACEHOLDER = '<svg class="placeholder" viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="12" width="32" height="24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 12a6 6 0 0 1 12 0" fill="none" stroke="#e30613" stroke-width="2"/></svg>';
+const PLACEHOLDER = '<svg class="placeholder" viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="12" width="32" height="24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 12a6 6 0 0 1 12 0" fill="none" style="stroke:var(--red)" stroke-width="2"/></svg>';
 
 // Критерии товара: по категории + те, что уже встречаются в оценках (если список критериев меняли).
 function critOf(it) {
@@ -429,7 +429,7 @@ function showItem(id) {
 
     <div class="sec"><div class="cap"><span>Оценки</span><span class="muted">из 5</span></div>
       <div class="score"><b class="num">${a ?? '—'}</b>${seg(a, 'red big')}</div>
-      ${it.again ? `<p class="again">Купили бы снова: <b style="color:${it.again === 'Да' ? 'var(--red)' : 'inherit'}">${esc(it.again)}</b></p>` : ''}
+      ${it.again ? `<p class="again">Купили бы снова: <b style="color:${it.again === 'Да' ? 'var(--red-ink)' : 'inherit'}">${esc(it.again)}</b></p>` : ''}
       <div class="keys">${people.map((p, i) => `<span style="--c:${color(i)}">${esc(p)}</span>`).join('')}</div>
       ${chart}
     </div>
