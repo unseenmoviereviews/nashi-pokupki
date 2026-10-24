@@ -1,5 +1,5 @@
 /**
- * Наши покупки — серверная часть (Google Apps Script).
+ * Наши покупочки — серверная часть (Google Apps Script).
  * Каталог того, что мы уже купили, с оценками по критериям.
  * Сайт лежит на GitHub Pages и обращается сюда как к API. Вход — по личному ключу,
  * ключи хранятся только в свойствах скрипта (в коде и на GitHub их нет).
@@ -8,7 +8,7 @@
  * 2. Один раз запустите функцию setup() — в журнале появятся ключи входа.
  * 3. Разверните как веб-приложение (см. README.md).
  */
-const MEMBERS = ['Я', 'Солнышко'];
+const MEMBERS = ['Я', 'Сонюшка'];
 
 // ID таблицы (из её адреса: /spreadsheets/d/ЭТОТ_ID/edit). Нужен, только если скрипт
 // создан отдельно, а не через «Расширения → Apps Script» в самой таблице.
@@ -53,7 +53,7 @@ const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComme
 let currentUser = null;
 
 function doGet() {
-  return ContentService.createTextOutput('API «Наши покупки» работает.');
+  return ContentService.createTextOutput('API «Наши покупочки» работает.');
 }
 
 // Запрос: {key, fn, args}. Ответ: {ok: true, data} или {ok: false, error}.

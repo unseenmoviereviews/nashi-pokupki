@@ -4,143 +4,177 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Наши покупки</title>
+<meta name="theme-color" content="#fbf7f2">
+<title>Наши покупочки</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M16 26a10 10 0 0 1 20 0' fill='none' stroke='%23a9cbea' stroke-width='5'/%3E%3Cpath d='M28 26a10 10 0 0 1 20 0' fill='none' stroke='%23cfbff0' stroke-width='5'/%3E%3Crect x='8' y='24' width='48' height='36' rx='9' fill='%23f2a7b5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Unbounded:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fbf8f4;--ink:#3d3538;--muted:#998e91;--rule:#3d3538;--hair:#ebe3dc;--red:#eb9aab;--red-ink:#b85873;--paper:#f4ede7;--c1:#9cc3e6;--c2:#f2a7b5;--c3:#a8dcc5;--c4:#cdbcef;--c5:#f7cf9c}
-@media (prefers-color-scheme:dark){:root{--bg:#1f1b1d;--ink:#efe7e9;--muted:#9d9396;--rule:#efe7e9;--hair:#352f31;--red:#f0a6b5;--red-ink:#f4b6c3;--paper:#2a2527;--c1:#8fb6d9;--c2:#eea1b0;--c3:#93c9b1;--c4:#b9a8dc;--c5:#e5bd8a}}
+:root{
+  --bg:#fbf7f2;--card:#fff;--ink:#3b3236;--muted:#9a8e92;--hair:#ece3db;--paper:#f4ece5;
+  --rose:#f2a7b5;--rose-ink:#b85873;--sky:#a9cbea;--mint:#acdcc6;--lilac:#cfbff0;--peach:#f8d0a0;--butter:#f6e3a1;
+  --display:Unbounded,Inter,sans-serif;
+  --band:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='28'%3E%3Ccircle cx='14' cy='14' r='11' fill='%23f2a7b5'/%3E%3Cpath d='M30 25a12 12 0 0 1 24 0z' fill='%23a9cbea'/%3E%3Crect x='59' y='3' width='22' height='22' rx='4' fill='%23acdcc6'/%3E%3Cpath d='M87 3v22h22A22 22 0 0 0 87 3z' fill='%23cfbff0'/%3E%3Cpath d='M115 25l11-22 11 22z' fill='%23f8d0a0'/%3E%3Ccircle cx='154' cy='14' r='10' fill='none' stroke='%23f6e3a1' stroke-width='4'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#1e1a1c;--card:#28232a;--ink:#f1e9ec;--muted:#a0959a;--hair:#372f34;--paper:#2f292d;
+  --rose:#e597a7;--rose-ink:#f4b6c3;--sky:#8fb6d9;--mint:#93c9b1;--lilac:#b9a8dc;--peach:#e5bd8a;--butter:#e0cd8a;
+}}
 *{box-sizing:border-box}
-body{margin:0;font:15px/1.4 Inter,"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:100px;-webkit-font-smoothing:antialiased}
+body{margin:0;font:15px/1.45 Inter,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:110px;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
 .cap{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
 .muted{color:var(--muted)}
 .num{font-variant-numeric:tabular-nums}
-a{color:var(--ink);text-decoration-thickness:2px;text-underline-offset:3px}
+a{color:var(--rose-ink);text-decoration-thickness:2px;text-underline-offset:3px}
 button.link{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+.band{height:28px;background:var(--band) repeat-x left center}
 
-/* Шапка */
-.masthead{border-top:10px solid var(--red);padding:20px 0 0}
-.mh{display:grid;grid-template-columns:1fr auto;align-items:end;gap:16px}
-h1{font-size:clamp(46px,13vw,104px);font-weight:900;letter-spacing:-.055em;line-height:.86;margin:0}
-h1 span{color:var(--red)}
-.mh svg{width:clamp(64px,16vw,120px);height:auto;display:block}
-.subline{display:flex;justify-content:space-between;gap:12px;border-top:2px solid var(--rule);margin-top:16px;padding:8px 0}
+/* Айдентика */
+.brand-row{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;padding:22px 16px 6px}
+.mark{width:clamp(58px,15vw,96px);height:auto;display:block}
+.logo{font-family:var(--display);font-weight:900;line-height:.92;letter-spacing:-.035em;font-size:clamp(30px,9.2vw,72px);margin:0;text-transform:lowercase}
+.logo span{display:block}
+.logo span:last-child{color:var(--rose-ink)}
+.tagline{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0 16px;border-bottom:2px dashed var(--hair)}
+.who{display:flex;align-items:center;gap:8px}
+.ava{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font:700 12px var(--display);color:var(--ink);background:var(--c,var(--sky));flex:0 0 auto}
 
-/* Статистика и график категорий */
-.stats{background:var(--paper);display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
-.stat{padding:12px}
-.stat+.stat{border-left:1px solid var(--hair);padding-left:12px}
-.stat b{display:block;font-size:clamp(24px,6vw,40px);font-weight:900;letter-spacing:-.04em;line-height:1.05}
-.catbar{display:flex;height:14px;margin:16px 0 8px;gap:2px}
-.catbar i{display:block;min-width:4px}
-.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px}
-.legend span::before{content:"";display:inline-block;width:9px;height:9px;margin-right:6px;background:var(--c)}
+/* Сводка */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.stat{position:relative;overflow:hidden;border-radius:20px;padding:14px 14px 16px;background:var(--c);color:#3b3236}
+.stat::after{content:"";position:absolute;right:-18px;top:-18px;width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.35)}
+.stat:nth-child(2)::after{border-radius:0;transform:rotate(20deg)}
+.stat:nth-child(3)::after{border-radius:0 0 0 100%}
+.stat b{display:block;font:900 clamp(24px,7vw,42px)/1.05 var(--display);letter-spacing:-.04em;margin-top:6px;position:relative}
+.stat .cap{opacity:.75;position:relative}
+.catbar{display:flex;height:16px;margin:18px 0 10px;gap:3px}
+.catbar i{display:block;min-width:8px;border-radius:99px}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:99px;background:var(--card);border:1px solid var(--hair);font-size:12px}
+.chip svg{width:18px;height:18px;padding:2px;border-radius:50%;background:var(--c)}
 
 /* Поля */
-.filters{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:16px;padding:14px 0 10px;margin-top:18px;border-bottom:2px solid var(--rule);overflow-x:auto}
-input,select,textarea{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px solid var(--ink);border-radius:0;padding:7px 0;width:100%;outline:none}
-input:focus,select:focus{border-bottom:2px solid var(--red);padding-bottom:6px}
-select{cursor:pointer}
-select option{background:var(--bg)}
+.filters{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:8px;padding:12px 0;margin-top:14px;overflow-x:auto}
+input,select,textarea{font:inherit;color:inherit;background:var(--paper);border:2px solid transparent;border-radius:14px;padding:10px 14px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--rose)}
+.filters input,.filters select{border-radius:99px}
 .filters input{flex:1 1 150px;min-width:130px}
-.filters select{width:auto;flex:0 0 auto;font-weight:500}
-textarea{min-height:80px;resize:vertical;border:1px solid var(--ink);padding:8px}
-textarea:focus{border:2px solid var(--red);padding:7px}
+.filters select{width:auto;flex:0 0 auto;font-weight:500;cursor:pointer}
+select option{background:var(--bg)}
+textarea{min-height:84px;resize:vertical}
 
-/* Сетка карточек */
-main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:28px 16px;padding-top:20px}
-.card{cursor:pointer;border-top:2px solid var(--rule);padding-top:8px}
-.card .idx{display:flex;justify-content:space-between;gap:6px;margin-bottom:8px}
-.card .ph{aspect-ratio:1;background:var(--paper);display:flex;align-items:center;justify-content:center;overflow:hidden}
+/* Карточки */
+main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;padding-top:6px}
+.card{cursor:pointer;background:var(--card);border-radius:22px;padding:8px 8px 12px;border:1px solid var(--hair);transition:transform .15s}
+.card:hover{transform:translateY(-3px) rotate(-.4deg)}
+.card .ph{position:relative;aspect-ratio:1;border-radius:16px;overflow:hidden;background:var(--c);display:flex;align-items:center;justify-content:center}
 .card .ph img{width:100%;height:100%;object-fit:cover}
-.card .n{font-weight:700;font-size:16px;line-height:1.2;margin-top:10px;letter-spacing:-.01em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.card .p{margin-top:4px;font-size:14px}
-.card .r{display:flex;align-items:center;gap:8px;margin-top:8px}
-.card .r b{font-size:22px;font-weight:900;letter-spacing:-.03em;min-width:34px}
-.placeholder{width:42%;height:42%}
-.tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-.tag.red{color:var(--red-ink)}
+.card .ph .icon{width:46%;height:46%;color:#3b3236;opacity:.8}
+.card .ph .deco{position:absolute;left:-14px;bottom:-14px;width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.35)}
+.no{position:absolute;left:8px;top:8px;font:700 11px var(--display);background:var(--card);color:var(--ink);padding:4px 8px;border-radius:99px}
+.sticker{position:absolute;right:6px;bottom:8px;font:700 11px var(--display);padding:6px 10px;border-radius:99px;background:var(--rose-ink);color:#fff;transform:rotate(-6deg);box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.sticker.maybe{background:var(--lilac);color:#3b3236}
+.sticker.no-again{background:var(--card);color:var(--muted)}
+.card .n{font-weight:700;font-size:15px;line-height:1.25;margin:10px 4px 0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card .p{margin:3px 4px 0;font-size:13px}
+.card .r{display:flex;align-items:center;gap:8px;margin:8px 4px 0}
+.card .r b{font:900 20px var(--display);letter-spacing:-.03em;min-width:32px}
 
-/* Сегментная шкала 1–5 */
-.seg{display:inline-flex;gap:2px;vertical-align:middle}
-.seg i{width:14px;height:8px;background:var(--hair);display:block}
-.seg i.on{background:var(--ink)}
-.seg.red i.on{background:var(--red)}
-.seg.big i{width:22px;height:10px}
+/* Точки-оценка */
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--hair);display:block}
+.dots i.on{background:var(--rose)}
+.dots.big i{width:16px;height:16px}
 
-.empty,.loading{grid-column:1/-1;padding:60px 0;font-size:20px;font-weight:700;letter-spacing:-.02em}
+.empty,.loading{grid-column:1/-1;text-align:center;padding:40px 0 60px;font:700 18px var(--display);letter-spacing:-.02em}
+.empty svg{width:180px;height:auto;display:block;margin:0 auto 16px}
 
-.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:64px;height:64px;border:0;background:var(--red);color:var(--ink);font:900 34px/1 Inter,Helvetica,sans-serif;cursor:pointer;z-index:6}
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:66px;height:66px;border:0;border-radius:50%;background:var(--rose);color:#3b3236;font:900 34px/1 var(--display);cursor:pointer;z-index:6;box-shadow:0 6px 0 var(--rose-ink)}
+.fab:active{transform:translateY(4px);box-shadow:0 2px 0 var(--rose-ink)}
 
 /* Вход */
-.login{max-width:420px;padding:32px 0}
-.login h2{font-size:34px;font-weight:900;letter-spacing:-.04em;margin:0 0 6px}
+.login{max-width:420px;margin:0 auto;padding:30px 0;text-align:center}
+.login svg{width:150px;height:auto;margin:0 auto 10px;display:block}
+.login h2{font:900 30px var(--display);letter-spacing:-.03em;margin:0 0 6px}
+.login form{text-align:left;margin-top:16px}
 
 /* Окна */
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10;display:flex;justify-content:flex-end}
-.sheet{background:var(--bg);width:100%;max-width:620px;height:100%;overflow:auto;padding:0 20px calc(40px + env(safe-area-inset-bottom));border-left:10px solid var(--red)}
-.sheet-top{position:sticky;top:0;background:var(--bg);display:flex;justify-content:space-between;align-items:center;padding:14px 0 10px;border-bottom:2px solid var(--rule);z-index:2}
-.close{border:0;background:none;color:var(--ink);font:400 30px/1 Inter,Helvetica,sans-serif;cursor:pointer;padding:0 2px}
-.sheet h2{font-size:clamp(30px,8vw,46px);font-weight:900;letter-spacing:-.045em;line-height:.95;margin:18px 0 10px}
-.meta{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin:14px 0}
-.meta div{padding:8px 8px 8px 0;min-width:0}
-.meta div+div{border-left:1px solid var(--hair);padding-left:8px}
-.meta b{display:block;font-size:16px;font-weight:700;margin-top:2px;overflow-wrap:anywhere}
-.gallery{display:flex;gap:4px;overflow-x:auto;margin:14px 0}
-.gallery button,.gallery .pv{flex:0 0 auto;width:180px;height:180px;background:var(--paper);position:relative;overflow:hidden;border:0;padding:0;cursor:zoom-in}
-.gallery .pv{width:96px;height:96px;cursor:default}
+.ov{position:fixed;inset:0;background:rgba(40,25,30,.45);z-index:10;display:flex;justify-content:flex-end}
+.sheet{background:var(--bg);width:100%;max-width:620px;height:100%;overflow:auto;padding:0 18px calc(40px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.sheet{border-radius:28px 0 0 28px}}
+.sheet .band{margin:0 -18px}
+.sheet-top{position:sticky;top:0;background:var(--bg);display:flex;justify-content:space-between;align-items:center;padding:12px 0;z-index:2}
+.close{border:0;background:var(--paper);color:var(--ink);width:38px;height:38px;border-radius:50%;font:400 24px/1 Inter,sans-serif;cursor:pointer}
+.sheet h2{font:900 clamp(26px,7vw,40px)/1.02 var(--display);letter-spacing:-.04em;margin:6px 0 12px}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.meta div{background:var(--paper);border-radius:16px;padding:10px 12px;min-width:0}
+.meta b{display:block;font-size:15px;font-weight:700;margin-top:2px;overflow-wrap:anywhere}
+.gallery{display:flex;gap:8px;overflow-x:auto;margin:14px 0}
+.gallery button,.gallery .pv{flex:0 0 auto;width:190px;height:190px;background:var(--paper);position:relative;overflow:hidden;border:0;padding:0;border-radius:18px;cursor:zoom-in}
+.gallery .pv{width:96px;height:96px;cursor:default;border-radius:14px}
 .gallery img{width:100%;height:100%;object-fit:cover;display:block}
-.pv button{position:absolute;top:0;right:0;border:0;width:26px;height:26px;background:var(--red);color:var(--ink);font-weight:700;cursor:pointer}
-.lightbox{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out}
-.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
-.sec{border-top:2px solid var(--rule);margin-top:28px;padding-top:8px}
-.sec>.cap{display:flex;justify-content:space-between;margin-bottom:12px}
-.desc{white-space:pre-wrap;margin:14px 0 0;font-size:16px;max-width:52ch}
+.pv button{position:absolute;top:4px;right:4px;border:0;width:24px;height:24px;border-radius:50%;background:var(--card);color:var(--ink);font-weight:700;cursor:pointer}
+.lightbox{position:fixed;inset:0;z-index:30;background:rgba(30,20,25,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:12px}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}
+.sec{background:var(--card);border:1px solid var(--hair);border-radius:24px;padding:14px 14px 16px;margin-top:14px}
+.sec>.cap{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.desc{white-space:pre-wrap;margin:14px 0 0;font-size:16px}
 
-.score{display:flex;align-items:flex-end;gap:16px;margin-bottom:14px;flex-wrap:wrap}
-.score b{font-size:84px;font-weight:900;letter-spacing:-.06em;line-height:.8;color:var(--red-ink)}
-.again{margin:0 0 16px;font-size:15px}
-.again b{font-weight:900}
-.keys{display:flex;gap:14px;font-size:12px;margin-bottom:6px}
-.keys span::before{content:"";display:inline-block;width:14px;height:8px;margin-right:6px;background:var(--c)}
-.crow{display:grid;grid-template-columns:minmax(90px,1fr) 2fr 34px;gap:4px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair)}
-.crow .bars{display:grid;gap:3px}
-.crow .bar{height:8px;background:var(--paper);position:relative}
-.crow .bar i{position:absolute;inset:0 auto 0 0;display:block}
-.crow .v{text-align:right;font-weight:700}
+.score{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.score b{font:900 72px/.9 var(--display);letter-spacing:-.06em;color:var(--rose-ink)}
+.again{display:inline-block;margin:0 0 14px;padding:6px 12px;border-radius:99px;background:var(--paper);font-size:14px}
+.again b{font-family:var(--display)}
+.keys{display:flex;gap:14px;margin-bottom:8px;font-size:13px}
+.keys span{display:inline-flex;align-items:center;gap:6px}
+.keys .ava{width:22px;height:22px;font-size:10px}
+.crow{display:grid;grid-template-columns:minmax(90px,1fr) 2fr 34px;gap:4px 12px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--hair)}
+.crow:last-child{border-bottom:0}
+.crow .bars{display:grid;gap:4px}
+.crow .bar{height:10px;background:var(--paper);border-radius:99px;position:relative;overflow:hidden}
+.crow .bar i{position:absolute;inset:0 auto 0 0;display:block;border-radius:99px}
+.crow .v{text-align:right;font:700 14px var(--display)}
 
-.rate{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--hair)}
-.rate .in{display:flex;gap:3px}
-.rate .in button{width:34px;height:34px;border:1px solid var(--ink);background:transparent;color:var(--ink);font:700 13px Inter,Helvetica,sans-serif;cursor:pointer;padding:0}
-.rate .in button.on{background:var(--c4);border-color:var(--c4);color:var(--ink)}
-.rate .in[data-v="5"] button.on{background:var(--red);border-color:var(--red);color:var(--ink)}
+.rate{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0}
+.rate .in{display:flex;gap:4px}
+.rate .in button{width:36px;height:36px;border:0;border-radius:50%;background:var(--paper);color:var(--ink);font:700 13px var(--display);cursor:pointer;padding:0;transition:transform .1s}
+.rate .in button:active{transform:scale(.9)}
+.rate .in button.on{background:var(--rose)}
+.rate .in[data-v="5"] button.on{background:var(--rose-ink);color:#fff}
 
-label{display:block;margin:18px 0 2px}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.btn{border:2px solid var(--ink);background:var(--ink);color:var(--bg);font:700 13px Inter,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.08em;padding:13px 18px;cursor:pointer;border-radius:0}
+label{display:block;margin:16px 0 6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{border:0;border-radius:99px;background:var(--ink);color:var(--bg);font:700 13px var(--display);padding:14px 20px;cursor:pointer}
 .btn:disabled{opacity:.5}
-.btn.red{background:var(--red);border-color:var(--red);color:var(--ink)}
-.btn.ghost{background:transparent;color:var(--ink)}
-.btn.danger{background:transparent;border-color:transparent;color:var(--red-ink);padding-left:0}
+.btn.rose{background:var(--rose);color:#3b3236;box-shadow:0 4px 0 var(--rose-ink)}
+.btn.ghost{background:var(--paper);color:var(--ink)}
+.btn.danger{background:transparent;color:var(--rose-ink);padding-left:4px}
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-.cmt{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair)}
-.cmt p{margin:0;white-space:pre-wrap}
-.cmt a{font-size:12px}
-.toast{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:14px 18px;z-index:40;font-weight:700;max-width:calc(100vw - 110px);border-left:6px solid var(--red)}
+.cmt{display:flex;gap:10px;padding:6px 0;align-items:flex-start}
+.cmt.mine{flex-direction:row-reverse}
+.bubble{background:var(--paper);border-radius:18px 18px 18px 6px;padding:9px 13px;max-width:80%}
+.cmt.mine .bubble{background:var(--c);color:#3b3236;border-radius:18px 18px 6px 18px}
+.bubble p{margin:2px 0 0;white-space:pre-wrap}
+.bubble .cap{opacity:.7}
+.bubble a{font-size:12px;color:inherit}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:99px;z-index:40;font-weight:700;max-width:calc(100vw - 32px)}
 </style>
 </head>
 <body>
-<header class="masthead wrap">
-  <div class="mh">
-    <h1>Наши<br>покупки<span>.</span></h1>
-    <svg viewBox="0 0 120 120" aria-hidden="true">
-      <rect x="0" y="0" width="56" height="120" fill="currentColor"/>
-      <circle cx="78" cy="78" r="42" style="fill:var(--red)"/>
-      <rect x="64" y="0" width="56" height="10" fill="currentColor"/>
+<header>
+  <div class="band"></div>
+  <div class="wrap brand-row">
+    <svg class="mark" viewBox="0 0 96 96" aria-hidden="true" id="markSrc">
+      <path d="M26 40a15 15 0 0 1 30 0" fill="none" stroke="var(--sky)" stroke-width="7" stroke-linecap="round"/>
+      <path d="M42 40a15 15 0 0 1 30 0" fill="none" stroke="var(--lilac)" stroke-width="7" stroke-linecap="round"/>
+      <rect x="12" y="36" width="72" height="54" rx="14" fill="var(--rose)"/>
+      <circle cx="36" cy="60" r="3.5" fill="#3b3236"/><circle cx="60" cy="60" r="3.5" fill="#3b3236"/>
+      <path d="M40 70q8 7 16 0" fill="none" stroke="#3b3236" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="80" cy="18" r="7" fill="var(--butter)"/>
     </svg>
+    <h1 class="logo"><span>наши</span><span>покупочки</span></h1>
   </div>
-  <div class="subline cap"><span>Купили · Оценили</span><span id="me"></span></div>
+  <div class="wrap"><div class="tagline"><span class="cap muted">купили · оценили · любим</span><span class="who cap" id="me"></span></div></div>
 </header>
 
 <div id="app"></div>
@@ -151,7 +185,7 @@ label{display:block;margin:18px 0 2px}
 const API_URL = 'https://script.google.com/macros/s/AKfycbyODiIKQtRk3uT9ESsm1jVkgl5u2OUj9X_Y9kZE1eU7JlPYA4t26ema6eV7tRu5Rl0/exec';
 
 const CURRENCIES = ['₽', '$', '€', '₸', 'Br', '₴'];
-const PALETTE = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
+const PALETTE = ['var(--sky)', 'var(--rose)', 'var(--mint)', 'var(--lilac)', 'var(--peach)', 'var(--butter)'];
 const DEMO_MODE = new URLSearchParams(location.search).has('demo');
 let D = null;        // данные с сервера
 let openId = null;   // открытый товар
@@ -159,6 +193,24 @@ const thumbs = {};   // кэш миниатюр: id файла -> data-URL
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- Айдентика: цвета и иконки категорий ---------- */
+
+const ICONS = {
+  'Одежда': 'M8 3 3 6l2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0Z',
+  'Обувь': 'M3 17v-6l5-1 3 3 6 1a4 4 0 0 1 4 4v1H3Z M3 15h18',
+  'Техника': 'M4 15v-3a8 8 0 0 1 16 0v3 M4 15h3v5H4Z M17 15h3v5h-3Z',
+  'Дом': 'M3 11l9-7 9 7 M5 10v10h14V10 M10 20v-6h4v6',
+  'Косметика': 'M9 21h6V11H9Z M10 11V6l4-3v8',
+  'Еда': 'M5 8h12v5a6 6 0 0 1-12 0Z M17 9h2a2 2 0 0 1 0 4h-2 M9 3v2 M13 3v2',
+  'Другое': 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.3l6-.7Z',
+};
+const CAT_COLORS = { 'Одежда': 'var(--rose)', 'Обувь': 'var(--peach)', 'Техника': 'var(--sky)', 'Дом': 'var(--mint)', 'Косметика': 'var(--lilac)', 'Еда': 'var(--butter)', 'Другое': 'var(--paper)' };
+const catColor = c => CAT_COLORS[c] || PALETTE[[...String(c)].reduce((s, ch) => s + ch.charCodeAt(0), 0) % PALETTE.length];
+const icon = (c, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="${ICONS[c] || ICONS['Другое']}"/></svg>`;
+const memberColor = name => PALETTE[Math.max(0, (D ? D.members : []).indexOf(name)) % 2];
+const ava = name => `<span class="ava" style="--c:${memberColor(name)}">${esc(String(name || '?').slice(0, 1))}</span>`;
+const markSvg = () => $('#markSrc').outerHTML.replace(' id="markSrc"', '').replace('class="mark"', '');
 
 /* ---------- Связь с сервером ---------- */
 
@@ -206,14 +258,17 @@ const busy = fn => async e => {
 function showLogin(error) {
   $('#me').textContent = '';
   closeModal();
-  $('#app').innerHTML = `<div class="wrap"><form class="login" id="login">
-    <h2>Вход</h2>
+  $('#app').innerHTML = `<div class="wrap"><div class="login">
+    ${markSvg()}
+    <h2>Привет!</h2>
     <div class="muted">Введите свой личный ключ. Он сохранится в этом браузере.</div>
-    ${API_URL ? '' : `<label class="cap" for="lApi">Адрес API (…/exec)</label><input id="lApi" type="url" required value="${esc(cfg.api)}" placeholder="https://script.google.com/macros/s/…/exec">`}
-    <label class="cap" for="lKey">Ключ</label><input id="lKey" type="password" required autocomplete="current-password" value="${esc(cfg.key)}">
-    ${error ? `<p style="color:var(--red-ink);font-weight:700">${esc(error)}</p>` : ''}
-    <div class="btns"><button class="btn red" type="submit">Войти</button><a class="cap" href="?demo" style="align-self:center">Посмотреть демо</a></div>
-  </form></div>`;
+    <form id="login">
+      ${API_URL ? '' : `<label class="cap" for="lApi">Адрес API (…/exec)</label><input id="lApi" type="url" required value="${esc(cfg.api)}" placeholder="https://script.google.com/macros/s/…/exec">`}
+      <label class="cap" for="lKey">Ключ</label><input id="lKey" type="password" required autocomplete="current-password" value="${esc(cfg.key)}">
+      ${error ? `<p style="color:var(--rose-ink);font-weight:700">${esc(error)}</p>` : ''}
+      <div class="btns"><button class="btn rose" type="submit">Войти</button><a class="cap" href="?demo" style="align-self:center">Посмотреть демо</a></div>
+    </form>
+  </div></div>`;
   $('#login').onsubmit = async e => {
     e.preventDefault();
     if (!API_URL) cfg.api = $('#lApi').value.trim();
@@ -240,10 +295,11 @@ const when = it => it.bought || String(it.created).slice(0, 10);
 const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 const safeUrl = u => /^https?:\/\//i.test(u) ? u : 'https://' + u;
 const pad = n => String(n).padStart(2, '0');
-const seg = (v, cls = '') => `<span class="seg ${cls}">${[1, 2, 3, 4, 5].map(n => `<i class="${v != null && n <= Math.round(v) ? 'on' : ''}"></i>`).join('')}</span>`;
+const dots = (v, cls = '') => `<span class="dots ${cls}">${[1, 2, 3, 4, 5].map(n => `<i class="${v != null && n <= Math.round(v) ? 'on' : ''}"></i>`).join('')}</span>`;
 const opts = (list, sel) => (list.includes(sel) || !sel ? list : [sel, ...list])
   .map(v => `<option${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
-const PLACEHOLDER = '<svg class="placeholder" viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="12" width="32" height="24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 12a6 6 0 0 1 12 0" fill="none" style="stroke:var(--red)" stroke-width="2"/></svg>';
+const sticker = again => !again ? '' :
+  `<span class="sticker ${again === 'Да' ? '' : again === 'Нет' ? 'no-again' : 'maybe'}">${again === 'Да' ? 'снова ♥' : again === 'Нет' ? 'больше нет' : 'может быть'}</span>`;
 
 // Критерии товара: по категории + те, что уже встречаются в оценках (если список критериев меняли).
 function critOf(it) {
@@ -270,7 +326,7 @@ function start() {
           <option value="expensive">Дороже</option>
         </select>
       </div>
-      <main id="list"><div class="loading">Загрузка…</div></main>
+      <main id="list"><div class="loading">Загружаем…</div></main>
     </div>
     <button class="fab" id="add" title="Добавить покупку">+</button>`;
   $('#list').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) showItem(c.dataset.id); });
@@ -283,7 +339,7 @@ async function load() {
   D = await api.getData();
   // Порядковые номера по дате добавления: 01, 02…
   D.items.slice().sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); });
-  $('#me').innerHTML = `${esc(D.me)}${DEMO_MODE ? ' · демо' : ' · <button class="link cap" id="out">Выйти</button>'}`;
+  $('#me').innerHTML = `${ava(D.me)}<span>${esc(D.me)}</span>${DEMO_MODE ? '<span class="muted">· демо</span>' : '<button class="link cap muted" id="out">выйти</button>'}`;
   if ($('#out')) $('#out').onclick = () => { logout(); showLogin(); };
   setOpts($('#fCat'), 'Все категории', Object.keys(D.criteria));
   setOpts($('#fAgain'), 'Купили бы снова?', D.again);
@@ -298,7 +354,7 @@ function setOpts(sel, allLabel, list) {
   sel.value = list.includes(v) ? v : '';
 }
 
-// Сводка: цифры и полоса долей по категориям.
+// Сводка: цветные плашки с цифрами и полоса долей по категориям.
 function renderOverview() {
   const items = D.items;
   if (!items.length) { $('#overview').innerHTML = ''; return; }
@@ -306,17 +362,16 @@ function renderOverview() {
   const answered = items.filter(it => it.again);
   const yes = answered.length ? Math.round(answered.filter(it => it.again === 'Да').length / answered.length * 100) + '%' : '—';
   const counts = {};
-  items.forEach(it => { counts[it.category || '—'] = (counts[it.category || '—'] || 0) + 1; });
+  items.forEach(it => { counts[it.category || 'Другое'] = (counts[it.category || 'Другое'] || 0) + 1; });
   const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  const color = i => PALETTE[i % PALETTE.length];
   $('#overview').innerHTML = `
     <div class="stats">
-      <div class="stat"><span class="cap muted">Покупок</span><b class="num">${pad(items.length)}</b></div>
-      <div class="stat"><span class="cap muted">Средняя</span><b class="num">${all ?? '—'}</b></div>
-      <div class="stat"><span class="cap muted">Снова: да</span><b class="num">${yes}</b></div>
+      <div class="stat" style="--c:var(--rose)"><span class="cap">покупок</span><b class="num">${pad(items.length)}</b></div>
+      <div class="stat" style="--c:var(--sky)"><span class="cap">средняя</span><b class="num">${all ?? '—'}</b></div>
+      <div class="stat" style="--c:var(--mint)"><span class="cap">снова: да</span><b class="num">${yes}</b></div>
     </div>
-    <div class="catbar">${cats.map(([c, n], i) => `<i style="flex:${n};background:${color(i)}" title="${esc(c)}: ${n}"></i>`).join('')}</div>
-    <div class="legend">${cats.map(([c, n], i) => `<span style="--c:${color(i)}">${esc(c)} <b class="num">${n}</b></span>`).join('')}</div>`;
+    <div class="catbar">${cats.map(([c, n]) => `<i style="flex:${n};background:${catColor(c)}" title="${esc(c)}: ${n}"></i>`).join('')}</div>
+    <div class="legend">${cats.map(([c, n]) => `<span class="chip" style="--c:${catColor(c)}">${icon(c, '')}${esc(c)} <b class="num">${n}</b></span>`).join('')}</div>`;
 }
 
 function render() {
@@ -331,19 +386,26 @@ function render() {
     .filter(it => (!cat || it.category === cat) && (!ag || it.again === ag) &&
       (!q || [it.name, it.shop, it.description].join(' ').toLowerCase().includes(q)))
     .sort(sorts[$('#fSort').value]);
-  $('#list').innerHTML = items.length ? items.map(card).join('') :
-    `<div class="empty">${D.items.length ? 'Ничего не нашлось.' : 'Пока пусто.<br><span class="muted">Нажмите «+», чтобы добавить первую покупку.</span>'}</div>`;
+  $('#list').innerHTML = items.length ? items.map(card).join('') : `<div class="empty">${emptyArt()}${
+    D.items.length ? 'Ничего не нашлось' : 'Здесь появятся ваши покупочки<br><span class="muted" style="font:500 14px Inter,sans-serif">Нажмите «+», чтобы добавить первую</span>'}</div>`;
   loadThumbs();
 }
+
+const emptyArt = () => `<svg viewBox="0 0 180 110" aria-hidden="true">
+  <circle cx="40" cy="62" r="34" fill="var(--sky)"/><rect x="70" y="30" width="60" height="60" rx="12" fill="var(--rose)"/>
+  <path d="M120 96l26-52 26 52z" fill="var(--mint)"/><circle cx="150" cy="22" r="10" fill="var(--butter)"/>
+  <path d="M86 32a14 14 0 0 1 28 0" fill="none" stroke="var(--lilac)" stroke-width="6" stroke-linecap="round"/></svg>`;
 
 function card(it) {
   const p = it.photos[0], a = itemAvg(it);
   return `<div class="card" data-id="${esc(it.id)}">
-    <div class="idx cap"><span class="num">${it.no}</span>${it.again ? `<span class="tag ${it.again === 'Да' ? 'red' : 'muted'}">Снова: ${esc(it.again)}</span>` : ''}</div>
-    <div class="ph">${p ? `<img data-thumb="${esc(p.thumb)}" alt="">` : PLACEHOLDER}</div>
+    <div class="ph" style="--c:${catColor(it.category)}">
+      ${p ? `<img data-thumb="${esc(p.thumb)}" alt="">` : `<span class="deco"></span>${icon(it.category)}`}
+      <span class="no">№${it.no}</span>${sticker(it.again)}
+    </div>
     <div class="n">${esc(it.name)}</div>
     <div class="p num">${esc(money(it))}<span class="muted"> · ${esc(it.category)}</span></div>
-    <div class="r"><b class="num">${a ?? '—'}</b>${seg(a, 'red')}</div>
+    <div class="r"><b class="num">${a ?? '—'}</b>${dots(a)}</div>
   </div>`;
 }
 
@@ -372,8 +434,8 @@ async function openPhoto(p) {
 /* ---------- Окна ---------- */
 
 function modal(label, html) {
-  $('#modal').innerHTML = `<div class="ov"><div class="sheet">
-    <div class="sheet-top"><span class="cap">${label}</span><button class="close" data-close title="Закрыть">×</button></div>${html}</div></div>`;
+  $('#modal').innerHTML = `<div class="ov"><div class="sheet"><div class="band"></div>
+    <div class="sheet-top"><span class="cap muted">${label}</span><button class="close" data-close title="Закрыть">×</button></div>${html}</div></div>`;
   loadThumbs();
 }
 function closeModal() {
@@ -400,7 +462,6 @@ function showItem(id) {
   const byAuthor = {};
   it.reviews.forEach(r => { byAuthor[r.author] = r; });
   const people = [...new Set([...D.members, ...Object.keys(byAuthor)])];
-  const color = i => PALETTE[i % PALETTE.length];
   const mine = byAuthor[D.me] || { ratings: {} };
   const a = itemAvg(it);
 
@@ -408,33 +469,33 @@ function showItem(id) {
   const chart = crit.map(c => {
     const vals = people.map(p => byAuthor[p] && byAuthor[p].ratings[c]);
     return `<div class="crow"><span>${esc(c)}</span>
-      <div class="bars">${vals.map((v, i) => `<div class="bar" title="${esc(people[i])}: ${v || '—'}"><i style="width:${(v || 0) * 20}%;background:${color(i)}"></i></div>`).join('')}</div>
+      <div class="bars">${vals.map((v, i) => `<div class="bar" title="${esc(people[i])}: ${v || '—'}"><i style="width:${(v || 0) * 20}%;background:${memberColor(people[i])}"></i></div>`).join('')}</div>
       <span class="v num">${avg(vals.filter(Boolean)) ?? '—'}</span></div>`;
   }).join('');
 
-  const comments = it.comments.map(c => `<div class="cmt"><div><b>${esc(c.author)}</b><br><span class="muted">${fmtDate(c.date)}</span>${
-    c.author === D.me ? `<br><a href="#" data-delc="${esc(c.id)}">удалить</a>` : ''}</div><p>${esc(c.text)}</p></div>`).join('');
+  const comments = it.comments.map(c => `<div class="cmt ${c.author === D.me ? 'mine' : ''}" style="--c:${memberColor(c.author)}">${ava(c.author)}
+    <div class="bubble"><span class="cap">${esc(c.author)} · ${fmtDate(c.date)}${c.author === D.me ? ` · <a href="#" data-delc="${esc(c.id)}">удалить</a>` : ''}</span><p>${esc(c.text)}</p></div></div>`).join('');
 
-  modal(`№ ${it.no} · ${esc(it.category)}`, `
+  modal(`№${it.no} · ${esc(it.category)}`, `
     <h2>${esc(it.name)}</h2>
     <div class="meta">
-      <div><span class="cap muted">Цена</span><b class="num">${esc(money(it))}</b></div>
-      <div><span class="cap muted">Куплено</span><b class="num">${esc(fmtDate(it.bought) || '—')}</b></div>
-      <div><span class="cap muted">Магазин</span><b>${esc(it.shop || '—')}</b></div>
+      <div><span class="cap muted">цена</span><b class="num">${esc(money(it))}</b></div>
+      <div><span class="cap muted">куплено</span><b class="num">${esc(fmtDate(it.bought) || '—')}</b></div>
+      <div><span class="cap muted">магазин</span><b>${esc(it.shop || '—')}</b></div>
     </div>
     ${it.photos.length ? `<div class="gallery">${it.photos.map((p, i) => `<button type="button" data-photo="${i}" title="Открыть в полном размере"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}
     ${it.url ? `<a class="cap" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener">Ссылка на товар ↗</a>` : ''}
     ${it.description ? `<p class="desc">${esc(it.description)}</p>` : ''}
-    <div class="cap muted" style="margin-top:12px">Добавил${it.author === D.me ? 'и вы' : ': ' + esc(it.author)}</div>
+    <div class="cap muted" style="margin-top:12px;display:flex;align-items:center;gap:8px">${ava(it.author)} добавил${it.author === D.me ? 'и вы' : 'а ' + esc(it.author)}</div>
 
     <div class="sec"><div class="cap"><span>Оценки</span><span class="muted">из 5</span></div>
-      <div class="score"><b class="num">${a ?? '—'}</b>${seg(a, 'red big')}</div>
-      ${it.again ? `<p class="again">Купили бы снова: <b style="color:${it.again === 'Да' ? 'var(--red-ink)' : 'inherit'}">${esc(it.again)}</b></p>` : ''}
-      <div class="keys">${people.map((p, i) => `<span style="--c:${color(i)}">${esc(p)}</span>`).join('')}</div>
+      <div class="score"><b class="num">${a ?? '—'}</b>${dots(a, 'big')}</div>
+      ${it.again ? `<span class="again">Купили бы снова: <b>${esc(it.again)}</b></span>` : ''}
+      <div class="keys">${people.map(p => `<span>${ava(p)}${esc(p)}</span>`).join('')}</div>
       ${chart}
     </div>
 
-    <div class="sec" id="myRate"><div class="cap"><span>Моя оценка</span><span class="muted">${esc(D.me)}</span></div>
+    <div class="sec" id="myRate"><div class="cap"><span>Моя оценка</span>${ava(D.me)}</div>
       ${rateInputs(crit, mine.ratings)}
       <div class="btns"><button class="btn" id="saveRate">Сохранить оценку</button></div></div>
 
@@ -443,7 +504,7 @@ function showItem(id) {
       <label class="cap" for="newC">Новый комментарий</label><textarea id="newC" style="min-height:60px"></textarea>
       <div class="btns"><button class="btn ghost" id="sendC">Отправить</button></div></div>
 
-    <div class="sec btns"><button class="btn ghost" id="edit">Редактировать</button><button class="btn danger" id="del">Удалить</button></div>
+    <div class="btns"><button class="btn ghost" id="edit">Редактировать</button><button class="btn danger" id="del">Удалить</button></div>
   `);
 
   document.querySelectorAll('[data-photo]').forEach(b => { b.onclick = () => openPhoto(it.photos[+b.dataset.photo]); });
@@ -471,11 +532,11 @@ function showForm(it) {
   // Уже загруженные фото — {full, thumb}; новые — {local, data, thumbData} до сохранения.
   const photos = it.photos.slice();
 
-  modal(isNew ? 'Новая покупка' : `№ ${it.no} · Редактирование`, `
-    <h2>${isNew ? 'Новая<br>покупка.' : esc(it.name)}</h2>
+  modal(isNew ? 'Новая покупочка' : `№${it.no} · Редактирование`, `
+    <h2>${isNew ? 'Новая покупочка' : esc(it.name)}</h2>
     <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="Например, льняная рубашка">
     <label class="cap">Фото</label><div class="gallery" id="fPh"></div>
-    <input type="file" id="fFile" accept="image/*" multiple style="border:0">
+    <input type="file" id="fFile" accept="image/*" multiple>
     <div class="two">
       <div><label class="cap" for="fPrice">Цена</label><input id="fPrice" class="num" type="number" inputmode="decimal" step="any" min="0" value="${esc(it.price)}"></div>
       <div><label class="cap" for="fCur">Валюта</label><select id="fCur">${opts(CURRENCIES, it.currency)}</select></div>
@@ -491,7 +552,7 @@ function showForm(it) {
     <label class="cap" for="fUrl">Ссылка на товар</label><input id="fUrl" type="url" value="${esc(it.url)}" placeholder="https://…">
     <label class="cap" for="fDesc">Описание</label><textarea id="fDesc" placeholder="Чем понравилось, размер, цвет…">${esc(it.description)}</textarea>
     ${isNew ? '<div class="sec" id="fRate"><div class="cap"><span>Сразу оценить</span><span class="muted">1–5</span></div><div id="fRateIn"></div></div>' : ''}
-    <div class="btns"><button class="btn red" id="fSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>
+    <div class="btns"><button class="btn rose" id="fSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>
   `);
 
   const drawPhotos = () => {
@@ -591,21 +652,23 @@ const DEMO = (() => {
   const db = {
     files: {},
     items: [
-      { id: 'd1', created: day(5), author: 'Солнышко', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', again: 'Да', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [],
-        reviews: [{ author: 'Солнышко', ratings: { 'Качество': 4, 'Посадка': 5, 'Внешний вид': 5 } }, { author: 'Я', ratings: { 'Качество': 3, 'Посадка': 4, 'Цена/качество': 4 } }],
-        comments: [{ id: 'c1', author: 'Солнышко', date: day(4), text: 'Тебе очень идёт!' }] },
+      { id: 'd1', created: day(5), author: 'Сонюшка', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', again: 'Да', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [],
+        reviews: [{ author: 'Сонюшка', ratings: { 'Качество': 4, 'Посадка': 5, 'Внешний вид': 5 } }, { author: 'Я', ratings: { 'Качество': 3, 'Посадка': 4, 'Цена/качество': 4 } }],
+        comments: [{ id: 'c1', author: 'Сонюшка', date: day(4), text: 'Тебе очень идёт!' }, { id: 'c2', author: 'Я', date: day(3), text: 'Спасибо, ношу каждый день' }] },
       { id: 'd2', created: day(3), author: 'Я', name: 'Беспроводные наушники', url: '', shop: 'Ozon', bought: day(60).slice(0, 10), price: 12990, currency: '₽', category: 'Техника', again: 'Возможно', description: '', photos: [],
         reviews: [{ author: 'Я', ratings: { 'Функциональность': 5, 'Дизайн': 4, 'Цена/качество': 3 } }], comments: [] },
-      { id: 'd3', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Другое', again: 'Да', description: '', photos: [],
-        reviews: [{ author: 'Солнышко', ratings: { 'Качество': 5, 'Внешний вид': 5 } }], comments: [] },
+      { id: 'd3', created: day(2), author: 'Сонюшка', name: 'Крем для рук с инжиром', url: '', shop: 'Л’Этуаль', bought: day(12).slice(0, 10), price: 890, currency: '₽', category: 'Косметика', again: 'Да', description: '', photos: [],
+        reviews: [{ author: 'Сонюшка', ratings: { 'Эффект': 5, 'Запах': 5, 'Текстура': 4 } }], comments: [] },
+      { id: 'd4', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Дом', again: 'Нет', description: '', photos: [],
+        reviews: [{ author: 'Сонюшка', ratings: { 'Качество': 3, 'Внешний вид': 4 } }], comments: [] },
     ],
   };
   let n = 0;
   const find = id => db.items.find(x => x.id === id);
   return {
     getData: () => ({
-      me: 'Я', members: ['Я', 'Солнышко'], again: ['Да', 'Возможно', 'Нет'], items: db.items,
-      criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'] },
+      me: 'Я', members: ['Я', 'Сонюшка'], again: ['Да', 'Возможно', 'Нет'], items: db.items,
+      criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Обувь': ['Удобство', 'Качество', 'Внешний вид', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Дом': ['Качество', 'Внешний вид', 'Практичность', 'Цена/качество'], 'Косметика': ['Эффект', 'Запах', 'Текстура', 'Цена/качество'], 'Еда': ['Вкус', 'Качество', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'] },
     }),
     saveItem: d => {
       let it = find(d.id);
