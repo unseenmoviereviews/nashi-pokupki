@@ -6,9 +6,13 @@
  *
  * 1. Впишите имена в MEMBERS и (по желанию) почту пары в SHARE_WITH.
  * 2. Один раз запустите функцию setup() — в журнале появятся ключи входа.
- * 3. Разверните как веб-приложение (см. ИНСТРУКЦИЯ.md).
+ * 3. Разверните как веб-приложение (см. README.md).
  */
 const MEMBERS = ['Я', 'Солнышко'];
+
+// ID таблицы (из её адреса: /spreadsheets/d/ЭТОТ_ID/edit). Нужен, только если скрипт
+// создан отдельно, а не через «Расширения → Apps Script» в самой таблице.
+const SPREADSHEET_ID = '';
 
 // Кому открыть саму таблицу (чтобы смотреть её напрямую). Можно оставить пустым.
 const SHARE_WITH = [];
@@ -70,7 +74,8 @@ function doPost(e) {
 /* ---------- Первичная настройка (запустить один раз) ---------- */
 
 function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet() || (SPREADSHEET_ID && SpreadsheetApp.openById(SPREADSHEET_ID));
+  if (!ss) throw new Error('Не нашёл таблицу: впишите SPREADSHEET_ID в начале файла.');
   Object.keys(SHEETS).forEach(key => {
     const sh = ss.getSheetByName(SHEETS[key]) || ss.insertSheet(SHEETS[key]);
     if (sh.getLastRow() === 0) {
