@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Наши покупки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#111;--muted:#7a7a7a;--rule:#111;--hair:#dcdcdc;--red:#e30613;--paper:#f3f3f1;--c3:#9a9a9a;--c4:#cfcfcf;--c5:#555}
+@media (prefers-color-scheme:dark){:root{--bg:#0f0f0f;--ink:#f2f2f2;--muted:#8d8d8d;--rule:#f2f2f2;--hair:#2e2e2e;--red:#ff2b36;--paper:#1a1a1a;--c3:#777;--c4:#3d3d3d;--c5:#b5b5b5}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.4 Inter,"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:100px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+.cap{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--ink);text-decoration-thickness:2px;text-underline-offset:3px}
+button.link{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+
+/* Шапка */
+.masthead{border-top:10px solid var(--red);padding:20px 0 0}
+.mh{display:grid;grid-template-columns:1fr auto;align-items:end;gap:16px}
+h1{font-size:clamp(46px,13vw,104px);font-weight:900;letter-spacing:-.055em;line-height:.86;margin:0}
+h1 span{color:var(--red)}
+.mh svg{width:clamp(64px,16vw,120px);height:auto;display:block}
+.subline{display:flex;justify-content:space-between;gap:12px;border-top:2px solid var(--rule);margin-top:16px;padding:8px 0}
+
+/* Статистика и график категорий */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.stat{padding:12px 12px 12px 0}
+.stat+.stat{border-left:1px solid var(--hair);padding-left:12px}
+.stat b{display:block;font-size:clamp(24px,6vw,40px);font-weight:900;letter-spacing:-.04em;line-height:1.05}
+.catbar{display:flex;height:14px;margin:16px 0 8px;gap:2px}
+.catbar i{display:block;min-width:4px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;margin-right:6px;background:var(--c)}
+
+/* Поля */
+.filters{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:16px;padding:14px 0 10px;margin-top:18px;border-bottom:2px solid var(--rule);overflow-x:auto}
+input,select,textarea{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px solid var(--ink);border-radius:0;padding:7px 0;width:100%;outline:none}
+input:focus,select:focus{border-bottom:2px solid var(--red);padding-bottom:6px}
+select{cursor:pointer}
+select option{background:var(--bg)}
+.filters input{flex:1 1 150px;min-width:130px}
+.filters select{width:auto;flex:0 0 auto;font-weight:500}
+textarea{min-height:80px;resize:vertical;border:1px solid var(--ink);padding:8px}
+textarea:focus{border:2px solid var(--red);padding:7px}
+
+/* Сетка карточек */
+main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:28px 16px;padding-top:20px}
+.card{cursor:pointer;border-top:2px solid var(--rule);padding-top:8px}
+.card .idx{display:flex;justify-content:space-between;gap:6px;margin-bottom:8px}
+.card .ph{aspect-ratio:1;background:var(--paper);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.card .ph img{width:100%;height:100%;object-fit:cover}
+.card .n{font-weight:700;font-size:16px;line-height:1.2;margin-top:10px;letter-spacing:-.01em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card .p{margin-top:4px;font-size:14px}
+.card .r{display:flex;align-items:center;gap:8px;margin-top:8px}
+.card .r b{font-size:22px;font-weight:900;letter-spacing:-.03em;min-width:34px}
+.placeholder{width:42%;height:42%}
+.tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.tag.red{color:var(--red)}
+
+/* Сегментная шкала 1–5 */
+.seg{display:inline-flex;gap:2px;vertical-align:middle}
+.seg i{width:14px;height:8px;background:var(--hair);display:block}
+.seg i.on{background:var(--ink)}
+.seg.red i.on{background:var(--red)}
+.seg.big i{width:22px;height:10px}
+
+.empty,.loading{grid-column:1/-1;padding:60px 0;font-size:20px;font-weight:700;letter-spacing:-.02em}
+
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:64px;height:64px;border:0;background:var(--red);color:#fff;font:900 34px/1 Inter,Helvetica,sans-serif;cursor:pointer;z-index:6}
+
+/* Вход */
+.login{max-width:420px;padding:32px 0}
+.login h2{font-size:34px;font-weight:900;letter-spacing:-.04em;margin:0 0 6px}
+
+/* Окна */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10;display:flex;justify-content:flex-end}
+.sheet{background:var(--bg);width:100%;max-width:620px;height:100%;overflow:auto;padding:0 20px calc(40px + env(safe-area-inset-bottom));border-left:10px solid var(--red)}
+.sheet-top{position:sticky;top:0;background:var(--bg);display:flex;justify-content:space-between;align-items:center;padding:14px 0 10px;border-bottom:2px solid var(--rule);z-index:2}
+.close{border:0;background:none;color:var(--ink);font:400 30px/1 Inter,Helvetica,sans-serif;cursor:pointer;padding:0 2px}
+.sheet h2{font-size:clamp(30px,8vw,46px);font-weight:900;letter-spacing:-.045em;line-height:.95;margin:18px 0 10px}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin:14px 0}
+.meta div{padding:8px 8px 8px 0;min-width:0}
+.meta div+div{border-left:1px solid var(--hair);padding-left:8px}
+.meta b{display:block;font-size:16px;font-weight:700;margin-top:2px;overflow-wrap:anywhere}
+.gallery{display:flex;gap:4px;overflow-x:auto;margin:14px 0}
+.gallery button,.gallery .pv{flex:0 0 auto;width:180px;height:180px;background:var(--paper);position:relative;overflow:hidden;border:0;padding:0;cursor:zoom-in}
+.gallery .pv{width:96px;height:96px;cursor:default}
+.gallery img{width:100%;height:100%;object-fit:cover;display:block}
+.pv button{position:absolute;top:0;right:0;border:0;width:26px;height:26px;background:var(--red);color:#fff;font-weight:700;cursor:pointer}
+.lightbox{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+.sec{border-top:2px solid var(--rule);margin-top:28px;padding-top:8px}
+.sec>.cap{display:flex;justify-content:space-between;margin-bottom:12px}
+.desc{white-space:pre-wrap;margin:14px 0 0;font-size:16px;max-width:52ch}
+
+.score{display:flex;align-items:flex-end;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+.score b{font-size:84px;font-weight:900;letter-spacing:-.06em;line-height:.8;color:var(--red)}
+.again{margin:0 0 16px;font-size:15px}
+.again b{font-weight:900}
+.keys{display:flex;gap:14px;font-size:12px;margin-bottom:6px}
+.keys span::before{content:"";display:inline-block;width:14px;height:8px;margin-right:6px;background:var(--c)}
+.crow{display:grid;grid-template-columns:minmax(90px,1fr) 2fr 34px;gap:4px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair)}
+.crow .bars{display:grid;gap:3px}
+.crow .bar{height:8px;background:var(--paper);position:relative}
+.crow .bar i{position:absolute;inset:0 auto 0 0;display:block}
+.crow .v{text-align:right;font-weight:700}
+
+.rate{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--hair)}
+.rate .in{display:flex;gap:3px}
+.rate .in button{width:34px;height:34px;border:1px solid var(--ink);background:transparent;color:var(--ink);font:700 13px Inter,Helvetica,sans-serif;cursor:pointer;padding:0}
+.rate .in button.on{background:var(--ink);color:var(--bg)}
+.rate .in[data-v="5"] button.on{background:var(--red);border-color:var(--red);color:#fff}
+
+label{display:block;margin:18px 0 2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.btn{border:2px solid var(--ink);background:var(--ink);color:var(--bg);font:700 13px Inter,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.08em;padding:13px 18px;cursor:pointer;border-radius:0}
+.btn:disabled{opacity:.5}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.danger{background:transparent;border-color:transparent;color:var(--red);padding-left:0}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.cmt{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair)}
+.cmt p{margin:0;white-space:pre-wrap}
+.cmt a{font-size:12px}
+.toast{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:14px 18px;z-index:40;font-weight:700;max-width:calc(100vw - 110px);border-left:6px solid var(--red)}
+</style>
+</head>
+<body>
+<header class="masthead wrap">
+  <div class="mh">
+    <h1>Наши<br>покупки<span>.</span></h1>
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <rect x="0" y="0" width="56" height="120" fill="currentColor"/>
+      <circle cx="78" cy="78" r="42" fill="#e30613"/>
+      <rect x="64" y="0" width="56" height="10" fill="currentColor"/>
+    </svg>
+  </div>
+  <div class="subline cap"><span>Купили · Оценили</span><span id="me"></span></div>
+</header>
+
+<div id="app"></div>
+<div id="modal"></div>
+
+<script>
+// Адрес веб-приложения Apps Script (заканчивается на /exec). Можно оставить пустым — тогда его спросят при входе.
+const API_URL = '';
+
+const CURRENCIES = ['₽', '$', '€', '₸', 'Br', '₴'];
+const PALETTE = ['var(--ink)', 'var(--red)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
+const DEMO_MODE = new URLSearchParams(location.search).has('demo');
+let D = null;        // данные с сервера
+let openId = null;   // открытый товар
+const thumbs = {};   // кэш миниатюр: id файла -> data-URL
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- Связь с сервером ---------- */
+
+// Адрес и ключ хранятся только в этом браузере.
+const store = {
+  get: k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } },
+  set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) { /* приватный режим */ } },
+};
+const cfg = { api: API_URL || store.get('api'), key: store.get('key') };
+
+async function call(fn, ...args) {
+  if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO[fn](...args) ?? null));
+  // text/plain — чтобы браузер не делал лишний CORS-запрос, который Apps Script не поддерживает.
+  const res = await fetch(cfg.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: cfg.key, fn, args }) });
+  const j = await res.json().catch(() => { throw new Error('Сервер ответил не так, как ожидалось. Проверьте адрес API.'); });
+  if (!j.ok) {
+    if (j.error === 'Неверный ключ') logout();
+    throw new Error(j.error);
+  }
+  return j.data;
+}
+const api = new Proxy({}, { get: (_, fn) => (...args) => call(fn, ...args) });
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+const fail = e => toast('Ошибка: ' + (e && e.message || e));
+
+// Блокирует кнопку на время запроса и показывает ошибку, если что-то пошло не так.
+const busy = fn => async e => {
+  const b = e.currentTarget;
+  if (b.disabled) return;
+  const label = b.textContent;
+  b.disabled = true;
+  b.textContent = '…';
+  try { await fn(e); } catch (err) { fail(err); } finally { b.disabled = false; b.textContent = label; }
+};
+
+/* ---------- Вход ---------- */
+
+function showLogin(error) {
+  $('#me').textContent = '';
+  closeModal();
+  $('#app').innerHTML = `<div class="wrap"><form class="login" id="login">
+    <h2>Вход</h2>
+    <div class="muted">Введите свой личный ключ. Он сохранится в этом браузере.</div>
+    ${API_URL ? '' : `<label class="cap" for="lApi">Адрес API (…/exec)</label><input id="lApi" type="url" required value="${esc(cfg.api)}" placeholder="https://script.google.com/macros/s/…/exec">`}
+    <label class="cap" for="lKey">Ключ</label><input id="lKey" type="password" required autocomplete="current-password" value="${esc(cfg.key)}">
+    ${error ? `<p style="color:var(--red);font-weight:700">${esc(error)}</p>` : ''}
+    <div class="btns"><button class="btn red" type="submit">Войти</button><a class="cap" href="?demo" style="align-self:center">Посмотреть демо</a></div>
+  </form></div>`;
+  $('#login').onsubmit = async e => {
+    e.preventDefault();
+    if (!API_URL) cfg.api = $('#lApi').value.trim();
+    cfg.key = $('#lKey').value.trim();
+    store.set('api', API_URL ? '' : cfg.api);
+    store.set('key', cfg.key);
+    start();
+  };
+}
+
+function logout() {
+  cfg.key = '';
+  store.set('key', '');
+}
+
+/* ---------- Расчёты и форматирование ---------- */
+
+const avg = a => a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length * 10) / 10 : null;
+const itemAvg = it => avg(it.reviews.flatMap(r => Object.values(r.ratings)));
+const priceNum = it => it.price === '' || it.price == null ? null : Number(it.price);
+const money = it => priceNum(it) == null ? '—' : priceNum(it).toLocaleString('ru-RU') + ' ' + (it.currency || '');
+const fmtDate = s => s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const when = it => it.bought || String(it.created).slice(0, 10);
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const safeUrl = u => /^https?:\/\//i.test(u) ? u : 'https://' + u;
+const pad = n => String(n).padStart(2, '0');
+const seg = (v, cls = '') => `<span class="seg ${cls}">${[1, 2, 3, 4, 5].map(n => `<i class="${v != null && n <= Math.round(v) ? 'on' : ''}"></i>`).join('')}</span>`;
+const opts = (list, sel) => (list.includes(sel) || !sel ? list : [sel, ...list])
+  .map(v => `<option${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
+const PLACEHOLDER = '<svg class="placeholder" viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="12" width="32" height="24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 12a6 6 0 0 1 12 0" fill="none" stroke="#e30613" stroke-width="2"/></svg>';
+
+// Критерии товара: по категории + те, что уже встречаются в оценках (если список критериев меняли).
+function critOf(it) {
+  const list = (D.criteria[it.category] || D.criteria['Другое'] || []).slice();
+  it.reviews.forEach(r => Object.keys(r.ratings).forEach(k => { if (!list.includes(k)) list.push(k); }));
+  return list;
+}
+
+/* ---------- Список ---------- */
+
+function start() {
+  if (!DEMO_MODE && (!cfg.api || !cfg.key)) return showLogin();
+  $('#app').innerHTML = `
+    <section class="wrap" id="overview"></section>
+    <div class="wrap">
+      <div class="filters">
+        <input id="q" type="search" placeholder="Поиск">
+        <select id="fCat"></select>
+        <select id="fAgain"></select>
+        <select id="fSort">
+          <option value="new">Недавние</option>
+          <option value="rating">По оценке</option>
+          <option value="cheap">Дешевле</option>
+          <option value="expensive">Дороже</option>
+        </select>
+      </div>
+      <main id="list"><div class="loading">Загрузка…</div></main>
+    </div>
+    <button class="fab" id="add" title="Добавить покупку">+</button>`;
+  $('#list').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) showItem(c.dataset.id); });
+  ['q', 'fCat', 'fAgain', 'fSort'].forEach(id => $('#' + id).addEventListener('input', render));
+  $('#add').onclick = () => showForm();
+  load().catch(e => (cfg.key && !DEMO_MODE ? fail(e) : showLogin(e.message)));
+}
+
+async function load() {
+  D = await api.getData();
+  // Порядковые номера по дате добавления: 01, 02…
+  D.items.slice().sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); });
+  $('#me').innerHTML = `${esc(D.me)}${DEMO_MODE ? ' · демо' : ' · <button class="link cap" id="out">Выйти</button>'}`;
+  if ($('#out')) $('#out').onclick = () => { logout(); showLogin(); };
+  setOpts($('#fCat'), 'Все категории', Object.keys(D.criteria));
+  setOpts($('#fAgain'), 'Купили бы снова?', D.again);
+  renderOverview();
+  render();
+  if (openId) showItem(openId);
+}
+
+function setOpts(sel, allLabel, list) {
+  const v = sel.value;
+  sel.innerHTML = `<option value="">${esc(allLabel)}</option>` + list.map(x => `<option>${esc(x)}</option>`).join('');
+  sel.value = list.includes(v) ? v : '';
+}
+
+// Сводка: цифры и полоса долей по категориям.
+function renderOverview() {
+  const items = D.items;
+  if (!items.length) { $('#overview').innerHTML = ''; return; }
+  const all = avg(items.map(itemAvg).filter(v => v != null));
+  const answered = items.filter(it => it.again);
+  const yes = answered.length ? Math.round(answered.filter(it => it.again === 'Да').length / answered.length * 100) + '%' : '—';
+  const counts = {};
+  items.forEach(it => { counts[it.category || '—'] = (counts[it.category || '—'] || 0) + 1; });
+  const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const color = i => PALETTE[i % PALETTE.length];
+  $('#overview').innerHTML = `
+    <div class="stats">
+      <div class="stat"><span class="cap muted">Покупок</span><b class="num">${pad(items.length)}</b></div>
+      <div class="stat"><span class="cap muted">Средняя</span><b class="num">${all ?? '—'}</b></div>
+      <div class="stat"><span class="cap muted">Снова: да</span><b class="num">${yes}</b></div>
+    </div>
+    <div class="catbar">${cats.map(([c, n], i) => `<i style="flex:${n};background:${color(i)}" title="${esc(c)}: ${n}"></i>`).join('')}</div>
+    <div class="legend">${cats.map(([c, n], i) => `<span style="--c:${color(i)}">${esc(c)} <b class="num">${n}</b></span>`).join('')}</div>`;
+}
+
+function render() {
+  const q = $('#q').value.trim().toLowerCase(), cat = $('#fCat').value, ag = $('#fAgain').value;
+  const sorts = {
+    new: (a, b) => when(b).localeCompare(when(a)) || String(b.created).localeCompare(String(a.created)),
+    rating: (a, b) => (itemAvg(b) ?? -1) - (itemAvg(a) ?? -1),
+    cheap: (a, b) => (priceNum(a) ?? 1e15) - (priceNum(b) ?? 1e15),
+    expensive: (a, b) => (priceNum(b) ?? -1) - (priceNum(a) ?? -1),
+  };
+  const items = D.items
+    .filter(it => (!cat || it.category === cat) && (!ag || it.again === ag) &&
+      (!q || [it.name, it.shop, it.description].join(' ').toLowerCase().includes(q)))
+    .sort(sorts[$('#fSort').value]);
+  $('#list').innerHTML = items.length ? items.map(card).join('') :
+    `<div class="empty">${D.items.length ? 'Ничего не нашлось.' : 'Пока пусто.<br><span class="muted">Нажмите «+», чтобы добавить первую покупку.</span>'}</div>`;
+  loadThumbs();
+}
+
+function card(it) {
+  const p = it.photos[0], a = itemAvg(it);
+  return `<div class="card" data-id="${esc(it.id)}">
+    <div class="idx cap"><span class="num">${it.no}</span>${it.again ? `<span class="tag ${it.again === 'Да' ? 'red' : 'muted'}">Снова: ${esc(it.again)}</span>` : ''}</div>
+    <div class="ph">${p ? `<img data-thumb="${esc(p.thumb)}" alt="">` : PLACEHOLDER}</div>
+    <div class="n">${esc(it.name)}</div>
+    <div class="p num">${esc(money(it))}<span class="muted"> · ${esc(it.category)}</span></div>
+    <div class="r"><b class="num">${a ?? '—'}</b>${seg(a, 'red')}</div>
+  </div>`;
+}
+
+// Фото приватные, поэтому миниатюры приходят с сервера пачками и кэшируются.
+async function loadThumbs() {
+  const imgs = () => [...document.querySelectorAll('img[data-thumb]')];
+  const fill = () => imgs().forEach(img => { const s = thumbs[img.dataset.thumb]; if (s && !img.getAttribute('src')) img.src = s; });
+  fill();
+  const need = [...new Set(imgs().map(i => i.dataset.thumb))].filter(id => !(id in thumbs));
+  need.forEach(id => { thumbs[id] = ''; });
+  for (let i = 0; i < need.length; i += 12) {
+    Object.assign(thumbs, await api.getThumbs(need.slice(i, i + 12)).catch(() => ({})));
+    fill();
+  }
+}
+
+async function openPhoto(p) {
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.innerHTML = `<img src="${thumbs[p.thumb] || ''}" alt="">`;
+  box.onclick = () => box.remove();
+  document.body.appendChild(box);
+  try { box.querySelector('img').src = await api.getPhoto(p.full); } catch (e) { /* остаётся миниатюра */ }
+}
+
+/* ---------- Окна ---------- */
+
+function modal(label, html) {
+  $('#modal').innerHTML = `<div class="ov"><div class="sheet">
+    <div class="sheet-top"><span class="cap">${label}</span><button class="close" data-close title="Закрыть">×</button></div>${html}</div></div>`;
+  loadThumbs();
+}
+function closeModal() {
+  $('#modal').innerHTML = '';
+  openId = null;
+}
+
+function rateInputs(crit, vals) {
+  return crit.map(c => `<div class="rate"><span>${esc(c)}</span><span class="in" data-crit="${esc(c)}" data-v="${vals[c] || 0}">${
+    [1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" class="${n <= (vals[c] || 0) ? 'on' : ''}">${n}</button>`).join('')
+  }</span></div>`).join('') || '<div class="muted">Для этой категории нет критериев</div>';
+}
+function readRates(root) {
+  const o = {};
+  root.querySelectorAll('.in').forEach(s => { const v = +s.dataset.v; if (v) o[s.dataset.crit] = v; });
+  return o;
+}
+
+function showItem(id) {
+  const it = D.items.find(x => x.id === id);
+  if (!it) return closeModal();
+  openId = id;
+  const crit = critOf(it);
+  const byAuthor = {};
+  it.reviews.forEach(r => { byAuthor[r.author] = r; });
+  const people = [...new Set([...D.members, ...Object.keys(byAuthor)])];
+  const color = i => PALETTE[i % PALETTE.length];
+  const mine = byAuthor[D.me] || { ratings: {} };
+  const a = itemAvg(it);
+
+  // График: по каждому критерию полоса на каждого участника.
+  const chart = crit.map(c => {
+    const vals = people.map(p => byAuthor[p] && byAuthor[p].ratings[c]);
+    return `<div class="crow"><span>${esc(c)}</span>
+      <div class="bars">${vals.map((v, i) => `<div class="bar" title="${esc(people[i])}: ${v || '—'}"><i style="width:${(v || 0) * 20}%;background:${color(i)}"></i></div>`).join('')}</div>
+      <span class="v num">${avg(vals.filter(Boolean)) ?? '—'}</span></div>`;
+  }).join('');
+
+  const comments = it.comments.map(c => `<div class="cmt"><div><b>${esc(c.author)}</b><br><span class="muted">${fmtDate(c.date)}</span>${
+    c.author === D.me ? `<br><a href="#" data-delc="${esc(c.id)}">удалить</a>` : ''}</div><p>${esc(c.text)}</p></div>`).join('');
+
+  modal(`№ ${it.no} · ${esc(it.category)}`, `
+    <h2>${esc(it.name)}</h2>
+    <div class="meta">
+      <div><span class="cap muted">Цена</span><b class="num">${esc(money(it))}</b></div>
+      <div><span class="cap muted">Куплено</span><b class="num">${esc(fmtDate(it.bought) || '—')}</b></div>
+      <div><span class="cap muted">Магазин</span><b>${esc(it.shop || '—')}</b></div>
+    </div>
+    ${it.photos.length ? `<div class="gallery">${it.photos.map((p, i) => `<button type="button" data-photo="${i}" title="Открыть в полном размере"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}
+    ${it.url ? `<a class="cap" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener">Ссылка на товар ↗</a>` : ''}
+    ${it.description ? `<p class="desc">${esc(it.description)}</p>` : ''}
+    <div class="cap muted" style="margin-top:12px">Добавил${it.author === D.me ? 'и вы' : ': ' + esc(it.author)}</div>
+
+    <div class="sec"><div class="cap"><span>Оценки</span><span class="muted">из 5</span></div>
+      <div class="score"><b class="num">${a ?? '—'}</b>${seg(a, 'red big')}</div>
+      ${it.again ? `<p class="again">Купили бы снова: <b style="color:${it.again === 'Да' ? 'var(--red)' : 'inherit'}">${esc(it.again)}</b></p>` : ''}
+      <div class="keys">${people.map((p, i) => `<span style="--c:${color(i)}">${esc(p)}</span>`).join('')}</div>
+      ${chart}
+    </div>
+
+    <div class="sec" id="myRate"><div class="cap"><span>Моя оценка</span><span class="muted">${esc(D.me)}</span></div>
+      ${rateInputs(crit, mine.ratings)}
+      <div class="btns"><button class="btn" id="saveRate">Сохранить оценку</button></div></div>
+
+    <div class="sec"><div class="cap"><span>Впечатления</span><span class="muted num">${pad(it.comments.length)}</span></div>
+      ${comments || '<div class="muted">Пока нет комментариев</div>'}
+      <label class="cap" for="newC">Новый комментарий</label><textarea id="newC" style="min-height:60px"></textarea>
+      <div class="btns"><button class="btn ghost" id="sendC">Отправить</button></div></div>
+
+    <div class="sec btns"><button class="btn ghost" id="edit">Редактировать</button><button class="btn danger" id="del">Удалить</button></div>
+  `);
+
+  document.querySelectorAll('[data-photo]').forEach(b => { b.onclick = () => openPhoto(it.photos[+b.dataset.photo]); });
+  $('#saveRate').onclick = busy(async () => { await api.saveReview(id, readRates($('#myRate'))); toast('Оценка сохранена'); await load(); });
+  $('#sendC').onclick = busy(async () => {
+    const t = $('#newC').value.trim();
+    if (!t) return;
+    await api.addComment(id, t);
+    await load();
+  });
+  $('#edit').onclick = () => showForm(it);
+  $('#del').onclick = busy(async () => {
+    if (!confirm(`Удалить «${it.name}» вместе с фото, оценками и комментариями?`)) return;
+    await api.deleteItem(id);
+    closeModal();
+    toast('Удалено');
+    await load();
+  });
+}
+
+function showForm(it) {
+  const isNew = !it;
+  const cats = Object.keys(D.criteria);
+  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', again: '', description: '', photos: [] };
+  // Уже загруженные фото — {full, thumb}; новые — {local, data, thumbData} до сохранения.
+  const photos = it.photos.slice();
+
+  modal(isNew ? 'Новая покупка' : `№ ${it.no} · Редактирование`, `
+    <h2>${isNew ? 'Новая<br>покупка.' : esc(it.name)}</h2>
+    <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="Например, льняная рубашка">
+    <label class="cap">Фото</label><div class="gallery" id="fPh"></div>
+    <input type="file" id="fFile" accept="image/*" multiple style="border:0">
+    <div class="two">
+      <div><label class="cap" for="fPrice">Цена</label><input id="fPrice" class="num" type="number" inputmode="decimal" step="any" min="0" value="${esc(it.price)}"></div>
+      <div><label class="cap" for="fCur">Валюта</label><select id="fCur">${opts(CURRENCIES, it.currency)}</select></div>
+    </div>
+    <div class="two">
+      <div><label class="cap" for="fCatS">Категория</label><select id="fCatS">${opts(cats, it.category)}</select></div>
+      <div><label class="cap" for="fAg">Купили бы снова?</label><select id="fAg"><option value="">—</option>${opts(D.again, it.again)}</select></div>
+    </div>
+    <div class="two">
+      <div><label class="cap" for="fShop">Магазин</label><input id="fShop" value="${esc(it.shop)}" placeholder="ZARA, Ozon…"></div>
+      <div><label class="cap" for="fDate">Дата покупки</label><input id="fDate" type="date" value="${esc(it.bought)}"></div>
+    </div>
+    <label class="cap" for="fUrl">Ссылка на товар</label><input id="fUrl" type="url" value="${esc(it.url)}" placeholder="https://…">
+    <label class="cap" for="fDesc">Описание</label><textarea id="fDesc" placeholder="Чем понравилось, размер, цвет…">${esc(it.description)}</textarea>
+    ${isNew ? '<div class="sec" id="fRate"><div class="cap"><span>Сразу оценить</span><span class="muted">1–5</span></div><div id="fRateIn"></div></div>' : ''}
+    <div class="btns"><button class="btn red" id="fSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>
+  `);
+
+  const drawPhotos = () => {
+    $('#fPh').innerHTML = photos.map((p, i) => `<div class="pv">${p.local
+      ? `<img src="data:image/jpeg;base64,${p.thumbData}" alt="">`
+      : `<img data-thumb="${esc(p.thumb)}" alt="">`}<button type="button" data-rm="${i}" title="Убрать">×</button></div>`).join('');
+    loadThumbs();
+  };
+  drawPhotos();
+  $('#fPh').onclick = e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { photos.splice(+rm.dataset.rm, 1); drawPhotos(); }
+  };
+  $('#fFile').onchange = async e => {
+    for (const f of e.target.files) {
+      try { photos.push({ local: true, data: await resize(f, 1600, 0.85), thumbData: await resize(f, 600, 0.8) }); }
+      catch (err) { toast('Не удалось прочитать ' + f.name); }
+    }
+    e.target.value = '';
+    drawPhotos();
+  };
+
+  if (isNew) {
+    const drawRates = () => { $('#fRateIn').innerHTML = rateInputs(D.criteria[$('#fCatS').value] || [], {}); };
+    drawRates();
+    $('#fCatS').onchange = drawRates;
+  }
+
+  $('#fSave').onclick = busy(async () => {
+    const name = $('#fName').value.trim();
+    if (!name) { toast('Укажите название'); $('#fName').focus(); return; }
+    for (let i = 0; i < photos.length; i++) {
+      if (!photos[i].local) continue;
+      const up = await api.uploadPhoto(photos[i].data, photos[i].thumbData);
+      thumbs[up.thumb] = 'data:image/jpeg;base64,' + photos[i].thumbData;
+      photos[i] = up; // при повторном нажатии не загрузим второй раз
+    }
+    const id = await api.saveItem({
+      id: it.id, name, url: $('#fUrl').value, shop: $('#fShop').value, bought: $('#fDate').value, price: $('#fPrice').value,
+      currency: $('#fCur').value, category: $('#fCatS').value, again: $('#fAg').value,
+      description: $('#fDesc').value, photos,
+    });
+    if (isNew) {
+      const r = readRates($('#fRate'));
+      if (Object.keys(r).length) await api.saveReview(id, r);
+    }
+    openId = id;
+    toast('Сохранено');
+    await load();
+  });
+}
+
+// Уменьшает фото на устройстве перед отправкой; возвращает base64 JPEG.
+function resize(file, max, quality) {
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      ok(c.toDataURL('image/jpeg', quality).split(',')[1]);
+    };
+    img.onerror = fail;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/* ---------- События окна ---------- */
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const lb = $('.lightbox');
+  lb ? lb.remove() : closeModal();
+});
+$('#modal').addEventListener('click', e => {
+  if (e.target.closest('[data-close]') || e.target.classList.contains('ov')) return closeModal();
+  const box = e.target.closest('.in button');
+  if (box) {
+    const s = box.parentElement, n = +box.dataset.n;
+    s.dataset.v = +s.dataset.v === n ? 0 : n; // повторное нажатие на ту же цифру снимает оценку
+    s.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.n <= +s.dataset.v));
+  }
+  const dc = e.target.closest('[data-delc]');
+  if (dc) {
+    e.preventDefault();
+    if (confirm('Удалить комментарий?')) api.deleteComment(dc.dataset.delc).then(load).catch(fail);
+  }
+});
+
+/* ---------- Демо-режим (?demo): данные только в памяти, сервер не используется ---------- */
+
+const DEMO = (() => {
+  const day = d => new Date(Date.now() - d * 864e5).toISOString();
+  const db = {
+    files: {},
+    items: [
+      { id: 'd1', created: day(5), author: 'Солнышко', name: 'Льняная рубашка', url: 'https://example.com', shop: 'ZARA', bought: day(30).slice(0, 10), price: 3999, currency: '₽', category: 'Одежда', again: 'Да', description: 'Бежевая, размер M. Не мнётся после стирки.', photos: [],
+        reviews: [{ author: 'Солнышко', ratings: { 'Качество': 4, 'Посадка': 5, 'Внешний вид': 5 } }, { author: 'Я', ratings: { 'Качество': 3, 'Посадка': 4, 'Цена/качество': 4 } }],
+        comments: [{ id: 'c1', author: 'Солнышко', date: day(4), text: 'Тебе очень идёт!' }] },
+      { id: 'd2', created: day(3), author: 'Я', name: 'Беспроводные наушники', url: '', shop: 'Ozon', bought: day(60).slice(0, 10), price: 12990, currency: '₽', category: 'Техника', again: 'Возможно', description: '', photos: [],
+        reviews: [{ author: 'Я', ratings: { 'Функциональность': 5, 'Дизайн': 4, 'Цена/качество': 3 } }], comments: [] },
+      { id: 'd3', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Другое', again: 'Да', description: '', photos: [],
+        reviews: [{ author: 'Солнышко', ratings: { 'Качество': 5, 'Внешний вид': 5 } }], comments: [] },
+    ],
+  };
+  let n = 0;
+  const find = id => db.items.find(x => x.id === id);
+  return {
+    getData: () => ({
+      me: 'Я', members: ['Я', 'Солнышко'], again: ['Да', 'Возможно', 'Нет'], items: db.items,
+      criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'] },
+    }),
+    saveItem: d => {
+      let it = find(d.id);
+      if (!it) db.items.push(it = { id: 'n' + (++n), created: new Date().toISOString(), author: 'Я', reviews: [], comments: [] });
+      Object.assign(it, d, { id: it.id });
+      return it.id;
+    },
+    deleteItem: id => { db.items = db.items.filter(x => x.id !== id); },
+    saveReview: (id, r) => {
+      const it = find(id);
+      it.reviews = it.reviews.filter(x => x.author !== 'Я');
+      if (Object.keys(r).length) it.reviews.push({ author: 'Я', ratings: r });
+    },
+    addComment: (id, text) => { find(id).comments.push({ id: 'c' + (++n), author: 'Я', date: new Date().toISOString(), text }); },
+    deleteComment: cid => db.items.forEach(it => { it.comments = it.comments.filter(c => c.id !== cid); }),
+    uploadPhoto: (full, thumb) => { const id = 'f' + (++n); db.files[id] = 'data:image/jpeg;base64,' + thumb; return { full: id, thumb: id }; },
+    getThumbs: ids => Object.fromEntries(ids.map(id => [id, db.files[id] || null])),
+    getPhoto: id => db.files[id],
+  };
+})();
+
+start();
+</script>
+</body>
+</html>
