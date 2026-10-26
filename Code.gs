@@ -33,7 +33,7 @@ const DEFAULT_CRITERIA = [
   ['Другое', 'Качество, Внешний вид, Полезность, Цена/качество'],
 ];
 
-const SHEETS = { items: 'Товары', reviews: 'Оценки', comments: 'Комментарии', criteria: 'Критерии' };
+const SHEETS = { items: 'Товары', reviews: 'Оценки', comments: 'Комментарии', criteria: 'Критерии', recipes: 'Рецепты' };
 
 // [ключ в коде, заголовок столбца]. Столбцы с "_" — служебные, они скрыты.
 const SCHEMA = {
@@ -47,13 +47,16 @@ const SCHEMA = {
   comments: [['id', 'ID'], ['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'],
     ['date', 'Дата'], ['text', 'Текст']],
   criteria: [['category', 'Категория'], ['list', 'Критерии (через запятую)']],
+  recipes: [['id', 'ID'], ['created', 'Добавлено'], ['author', 'Автор'], ['name', 'Название'],
+    ['ingredientsText', 'Ингредиенты'], ['description', 'Как готовить'], ['photoLinks', 'Фото'],
+    ['photos', '_photos'], ['ingredients', '_ingredients']],
 };
 
 /* ---------- API ---------- */
 
 // Функции, которые может вызывать сайт.
 const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComment, uploadPhoto, getThumbs, getPhoto, renameMe,
-  savePush, removePush, getNews, testPush };
+  savePush, removePush, getNews, testPush, saveRecipe, deleteRecipe };
 let currentUser = null;
 
 function doGet() {
@@ -149,7 +152,57 @@ function getData() {
   read_('comments').forEach(c => {
     if (byId[c.itemId]) byId[c.itemId].comments.push({ id: c.id, author: c.author, date: c.date, text: c.text });
   });
-  return { me: user.name, members: members_(), criteria, again: AGAIN, items, pushKey: vapidKeys_().pub };
+  const recipes = read_('recipes').map(r => ({
+    id: r.id, created: r.created, author: r.author, name: r.name, description: r.description,
+    ingredients: parse_(r.ingredients, []), photos: parse_(r.photos, []),
+  }));
+  return { me: user.name, members: members_(), criteria, again: AGAIN, items, recipes, pushKey: vapidKeys_().pub };
+}
+
+/* ---------- Рецепты ---------- */
+
+/** Рецепт: название, фото, ингредиенты (каждый можно связать с покупкой) и описание. */
+function saveRecipe(d) {
+  const user = me_();
+  const id = withLock_(() => {
+    let r = null;
+    if (d.id) {
+      r = read_('recipes').find(x => x.id === d.id);
+      if (!r) throw new Error('Рецепт не найден — возможно, его удалили.');
+      r.created = new Date(r.created);
+    } else {
+      r = { id: newId_(), created: new Date(), author: user.name };
+    }
+    r.name = String(d.name || '').trim().slice(0, 120);
+    if (!r.name) throw new Error('Укажите название');
+    r.description = String(d.description || '').trim().slice(0, 20000);
+    const ingredients = (d.ingredients || []).map(i => ({
+      text: String(i.text || '').trim().slice(0, 120),
+      amount: String(i.amount || '').trim().slice(0, 40),
+      itemId: String(i.itemId || ''),
+    })).filter(i => i.text).slice(0, 60);
+    r.ingredients = JSON.stringify(ingredients);
+    r.ingredientsText = ingredients.map(i => i.text + (i.amount ? ' — ' + i.amount : '')).join('\n');
+
+    const photos = (d.photos || []).map(p => ({ full: String(p.full), thumb: String(p.thumb) }));
+    parse_(r.photos, []).filter(p => !photos.some(q => q.full === p.full)).forEach(trashPhoto_);
+    r.photos = JSON.stringify(photos);
+    r.photoLinks = photos.map(p => 'https://drive.google.com/file/d/' + p.full + '/view').join('\n');
+    write_('recipes', r);
+    return r.id;
+  });
+  if (!d.id) notify_({ type: 'recipe', author: user.name, recipeId: id, name: String(d.name || '').trim() });
+  return id;
+}
+
+function deleteRecipe(id) {
+  me_();
+  return withLock_(() => {
+    const r = read_('recipes').find(x => x.id === id);
+    if (!r) return;
+    parse_(r.photos, []).forEach(trashPhoto_);
+    sheet_('recipes').deleteRow(r._row);
+  });
 }
 
 function saveItem(d) {
@@ -313,7 +366,7 @@ function renameMe(newName) {
     const list = members_();
     if (list.indexOf(newName) >= 0) throw new Error('Это имя уже занято');
     const props = PropertiesService.getScriptProperties();
-    ['items', 'reviews', 'comments'].forEach(key => {
+    ['items', 'reviews', 'comments', 'recipes'].forEach(key => {
       const col = SCHEMA[key].findIndex(c => c[0] === 'author') + 1;
       const sh = sheet_(key);
       const n = sh.getLastRow() - 1;
@@ -384,9 +437,10 @@ function getNews() {
   const e = events.find(x => x.t > seen) || events[events.length - 1];
   if (!e) return null;
   props.setProperty('SEEN_' + user.name, String(Math.max(seen, e.t)));
-  const what = { item: 'новая покупочка', comment: 'новый комментарий', review: 'оценка вашей покупочки', test: 'проверка' }[e.type] || 'что-то новое';
+  const what = { item: 'новая покупочка', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', test: 'проверка' }[e.type] || 'что-то новое';
   const body = e.type === 'comment' ? e.name + ' — «' + e.text + '»' : e.text ? e.name + ' — ' + e.text : e.name;
-  return { title: e.author + ': ' + what, body, tag: e.type + '-' + e.t, url: e.itemId ? './?item=' + encodeURIComponent(e.itemId) : './' };
+  const url = e.recipeId ? './?recipe=' + encodeURIComponent(e.recipeId) : e.itemId ? './?item=' + encodeURIComponent(e.itemId) : './';
+  return { title: e.author + ': ' + what, body, tag: e.type + '-' + e.t, url };
 }
 
 /** Запоминает событие и будит устройства остальных участников. Ошибки уведомлений не мешают сохранению. */
@@ -589,8 +643,19 @@ function prop_(name) {
   return v;
 }
 
+// Листы, появившиеся в новых версиях (например, «Рецепты»), создаются при первом обращении.
 function sheet_(key) {
-  return ss_().getSheetByName(SHEETS[key]);
+  const ss = ss_();
+  let sh = ss.getSheetByName(SHEETS[key]);
+  if (!sh) {
+    sh = ss.insertSheet(SHEETS[key]);
+    const headers = SCHEMA[key].map(c => c[1]);
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    headers.forEach((h, i) => { if (h[0] === '_') sh.hideColumns(i + 1); });
+  }
+  return sh;
 }
 
 function read_(key) {

@@ -139,6 +139,25 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .pick button.on[data-a="Нет"]{background:var(--ink);color:var(--bg)}
 .photo-btns{display:flex;gap:8px;flex-wrap:wrap}
 .photo-btns .btn{flex:1 1 140px;text-align:center;-webkit-tap-highlight-color:transparent}
+.tabs{display:flex;gap:4px;margin-top:14px;padding:4px;background:var(--paper);border-radius:99px}
+.tabs button{flex:1;border:0;background:none;padding:11px 8px;border-radius:99px;font:700 13px var(--display);color:var(--muted);cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 2px 0 var(--hair)}
+.iicon{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:var(--c);flex:0 0 auto;border:2px solid var(--card);vertical-align:middle}
+.iicon img{width:100%;height:100%;object-fit:cover}
+.iicon svg{width:60%;height:60%;color:#3b3236}
+.ing-icons{display:inline-flex;margin-left:auto}
+.ing-icons .iicon+.iicon{margin-left:-8px}
+.ing{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--hair)}
+.ing:last-child{border-bottom:0}
+.ing-dot{display:block;width:12px;height:12px;border-radius:50%;background:var(--butter);margin:0 auto}
+.ing-link{border:0;background:none;padding:0;cursor:pointer;line-height:0}
+.ing-row{display:grid;grid-template-columns:32px 1fr 84px 30px;gap:6px;align-items:center;padding:4px 0}
+.ing-row input{padding:9px 10px}
+.iDel{border:0;background:var(--paper);border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--ink);font-size:16px}
+.pickgrid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:210px;overflow:auto}
+.pchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);background:var(--card);border-radius:99px;padding:3px 12px 3px 3px;font:500 13px Inter,sans-serif;color:var(--ink);cursor:pointer;max-width:100%}
+.pchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rchips{display:flex;flex-wrap:wrap;gap:6px}
 .offer{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;padding:9px 0;border-bottom:1px dashed var(--hair)}
 .offer:last-child{border-bottom:0}
 .offer b{font-family:var(--display);font-size:15px}
@@ -437,6 +456,14 @@ function critOf(it) {
 function start() {
   if (!DEMO_MODE && (!cfg.api || !cfg.key)) return showLogin();
   $('#app').innerHTML = `
+    <div class="wrap"><nav class="tabs">
+      <button type="button" data-tab="items">🛍️ Покупочки</button><button type="button" data-tab="recipes">🍳 Рецепты</button>
+    </nav></div>
+    <div id="tabRecipes" hidden><div class="wrap">
+      <div class="filters"><input id="rq" type="search" placeholder="Поиск по рецептам и ингредиентам"></div>
+      <main id="rlist"></main>
+    </div></div>
+    <div id="tabItems">
     <section class="wrap" id="overview"></section>
     <div class="wrap">
       <div class="filters">
@@ -452,10 +479,15 @@ function start() {
       </div>
       <main id="list"><div class="loading">Загружаем…</div></main>
     </div>
-    <button class="fab" id="add" title="Добавить покупку">+</button>`;
+    </div>
+    <button class="fab" id="add" title="Добавить">+</button>`;
   $('#list').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) showItem(c.dataset.id); });
+  $('#rlist').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) showRecipe(c.dataset.rid); });
   ['q', 'fCat', 'fAgain', 'fSort'].forEach(id => $('#' + id).addEventListener('input', render));
-  $('#add').onclick = () => showForm();
+  $('#rq').addEventListener('input', renderRecipes);
+  document.querySelectorAll('.tabs button').forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
+  setTab(openRecipeId ? 'recipes' : store.get('tab') || 'items');
+  $('#add').onclick = () => (tab === 'recipes' ? showRecipeForm() : showForm());
   load().catch(e => (cfg.key && !DEMO_MODE ? fail(e) : showLogin(e.message)));
 }
 
@@ -468,10 +500,150 @@ async function load() {
   if ($('#out')) $('#out').onclick = () => { logout(); showLogin(); };
   setOpts($('#fCat'), 'Все категории', Object.keys(D.criteria));
   setOpts($('#fAgain'), 'Купили бы снова?', D.again);
+  D.recipes = D.recipes || [];
   renderOverview();
   render();
+  renderRecipes();
   if (openId) showItem(openId);
+  else if (openRecipeId) showRecipe(openRecipeId);
   syncPush();
+}
+
+/* ---------- Вкладки ---------- */
+
+let tab = 'items';
+function setTab(t) {
+  tab = t === 'recipes' ? 'recipes' : 'items';
+  store.set('tab', tab);
+  $('#tabItems').hidden = tab !== 'items';
+  $('#tabRecipes').hidden = tab !== 'recipes';
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  $('#add').title = tab === 'recipes' ? 'Добавить рецепт' : 'Добавить покупку';
+}
+
+/* ---------- Рецепты ---------- */
+
+let openRecipeId = null;
+const itemById = id => D.items.find(x => x.id === id);
+// Иконка покупки: её фото или значок категории в цветном кружке.
+const itemIcon = (it, size = 30) => `<span class="iicon" style="--c:${catColor(it.category)};width:${size}px;height:${size}px" title="${esc(it.name)}">${
+  it.photos[0] ? `<img data-thumb="${esc(it.photos[0].thumb)}" alt="">` : icon(it.category, '')}</span>`;
+const linkedItems = r => r.ingredients.map(i => itemById(i.itemId)).filter(Boolean);
+
+function renderRecipes() {
+  if (!$('#rlist')) return;
+  const q = $('#rq').value.trim().toLowerCase();
+  const list = D.recipes
+    .filter(r => !q || [r.name, r.description, ...r.ingredients.map(i => i.text)].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => String(b.created).localeCompare(String(a.created)));
+  $('#rlist').innerHTML = list.length ? list.map(r => {
+    const p = r.photos[0], linked = linkedItems(r);
+    return `<div class="card" data-rid="${esc(r.id)}">
+      <div class="ph" style="--c:var(--butter)">${p ? `<img data-thumb="${esc(p.thumb)}" alt="">` : `<span class="deco"></span>${icon('Еда')}`}
+        <span class="no">${r.ingredients.length} ингр.</span></div>
+      <div class="n">${esc(r.name)}</div>
+      <div class="r">${ava(r.author)}${linked.length ? `<span class="ing-icons">${linked.slice(0, 5).map(it => itemIcon(it, 26)).join('')}</span>` : ''}</div>
+    </div>`;
+  }).join('') : `<div class="empty">${emptyArt()}${D.recipes.length ? 'Ничего не нашлось'
+    : 'Здесь будут ваши рецепты<br><span class="muted" style="font:500 14px Inter,sans-serif">Нажмите «+», чтобы записать первый</span>'}</div>`;
+  loadThumbs();
+}
+
+function showRecipe(id) {
+  const r = D.recipes.find(x => x.id === id);
+  if (!r) return closeModal();
+  openRecipeId = id;
+  const ings = r.ingredients.map(i => {
+    const it = itemById(i.itemId);
+    return `<div class="ing">${it ? `<button type="button" class="ing-link" data-item="${esc(it.id)}" title="Открыть покупку «${esc(it.name)}»">${itemIcon(it, 36)}</button>` : '<span class="ing-dot"></span>'}
+      <span>${esc(i.text)}</span><span class="muted num">${esc(i.amount)}</span></div>`;
+  }).join('');
+  modal('🍳 Рецепт', `
+    <h2>${esc(r.name)}</h2>
+    ${r.photos.length ? `<div class="gallery">${r.photos.map((p, i) => `<button type="button" data-photo="${i}" title="Открыть в полном размере"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}
+    <div class="sec"><div class="cap"><span>Ингредиенты</span><span class="muted num">${pad(r.ingredients.length)}</span></div>
+      ${ings || '<div class="muted">Пока не добавлены</div>'}</div>
+    ${r.description ? `<div class="sec"><div class="cap"><span>Как готовить</span></div><p class="desc" style="margin:0">${esc(r.description)}</p></div>` : ''}
+    <div class="cap muted" style="margin-top:12px;display:flex;align-items:center;gap:8px">${ava(r.author)} записал${r.author === D.me ? 'и вы' : 'а ' + esc(r.author)} · ${fmtDate(r.created)}</div>
+    <div class="btns"><button class="btn ghost" id="rEdit">Редактировать</button><button class="btn danger" id="rDel">Удалить</button></div>`);
+  document.querySelectorAll('[data-photo]').forEach(b => { b.onclick = () => openPhoto(r.photos[+b.dataset.photo]); });
+  document.querySelectorAll('.ing-link').forEach(b => { b.onclick = () => { openRecipeId = null; showItem(b.dataset.item); }; });
+  $('#rEdit').onclick = () => showRecipeForm(r);
+  $('#rDel').onclick = busy(async () => {
+    if (!confirm(`Удалить рецепт «${r.name}» вместе с фото?`)) return;
+    await api.deleteRecipe(id);
+    closeModal();
+    toast('Удалено');
+    await load();
+  });
+}
+
+const ingRow = i => {
+  const it = itemById(i.itemId);
+  return `<div class="ing-row" data-item="${it ? esc(it.id) : ''}">
+    <span>${it ? itemIcon(it, 32) : '<span class="ing-dot"></span>'}</span>
+    <input class="iText" value="${esc(i.text || '')}" placeholder="Ингредиент" aria-label="Ингредиент">
+    <input class="iAmt" value="${esc(i.amount || '')}" placeholder="Сколько" aria-label="Сколько">
+    <button type="button" class="iDel" title="Убрать">×</button>
+  </div>`;
+};
+
+function showRecipeForm(r) {
+  const isNew = !r;
+  r = r || { id: '', name: '', description: '', ingredients: [], photos: [] };
+  const photos = r.photos.slice();
+  modal(isNew ? '🍳 Новый рецепт' : '🍳 Редактирование', `
+    <h2>${isNew ? 'Новый рецепт' : esc(r.name)}</h2>
+    <label class="cap" for="rName">Название *</label><input id="rName" value="${esc(r.name)}" placeholder="Например, сырники с мёдом">
+    ${photoFields()}
+    <div class="sec"><div class="cap"><span>Ингредиенты</span><span class="muted">иконка — из покупок</span></div>
+      <div id="ingRows">${r.ingredients.map(ingRow).join('')}</div>
+      <div class="btns" style="margin-top:8px"><button type="button" class="btn ghost" id="addIng">+ Ингредиент</button></div>
+      <label class="cap" for="pickQ">Добавить из наших покупок</label>
+      <input id="pickQ" type="search" placeholder="Найти покупку">
+      <div class="pickgrid" id="pickGrid"></div></div>
+    <label class="cap" for="rDesc">Как готовить</label><textarea id="rDesc" style="min-height:160px" placeholder="1. Смешать творог с яйцом…">${esc(r.description)}</textarea>
+    <div class="btns"><button class="btn rose" id="rSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>`);
+  bindPhotos(photos);
+
+  const addRow = i => { $('#ingRows').insertAdjacentHTML('beforeend', ingRow(i)); loadThumbs(); return $('#ingRows').lastElementChild; };
+  $('#addIng').onclick = () => addRow({}).querySelector('.iText').focus();
+  $('#ingRows').onclick = e => { const del = e.target.closest('.iDel'); if (del) del.closest('.ing-row').remove(); };
+  // Покупки для выбора: сначала из категории «Еда», потом остальные.
+  const drawPick = () => {
+    const q = $('#pickQ').value.trim().toLowerCase();
+    const list = D.items.filter(it => !q || it.name.toLowerCase().includes(q))
+      .sort((a, b) => (b.category === 'Еда') - (a.category === 'Еда') || String(b.created).localeCompare(String(a.created)))
+      .slice(0, 40);
+    $('#pickGrid').innerHTML = list.map(it => `<button type="button" class="pchip" data-item="${esc(it.id)}">${itemIcon(it, 26)}<span>${esc(it.name)}</span></button>`).join('')
+      || '<span class="muted">Покупок не найдено</span>';
+    loadThumbs();
+  };
+  drawPick();
+  $('#pickQ').oninput = drawPick;
+  $('#pickGrid').onclick = e => {
+    const chip = e.target.closest('.pchip');
+    if (!chip) return;
+    const it = itemById(chip.dataset.item);
+    addRow({ text: it.name, itemId: it.id }).querySelector('.iAmt').focus();
+  };
+
+  $('#rSave').onclick = busy(async () => {
+    const name = $('#rName').value.trim();
+    if (!name) { toast('Укажите название'); $('#rName').focus(); return; }
+    await uploadNewPhotos(photos);
+    const id = await api.saveRecipe({
+      id: r.id, name, description: $('#rDesc').value, photos,
+      ingredients: [...document.querySelectorAll('#ingRows .ing-row')].map(row => ({
+        text: row.querySelector('.iText').value, amount: row.querySelector('.iAmt').value, itemId: row.dataset.item,
+      })).filter(i => i.text.trim()),
+    });
+    openId = null;
+    openRecipeId = id;
+    setTab('recipes');
+    toast('Сохранено');
+    await load();
+  });
 }
 
 function setOpts(sel, allLabel, list) {
@@ -567,6 +739,7 @@ function modal(label, html) {
 function closeModal() {
   $('#modal').innerHTML = '';
   openId = null;
+  openRecipeId = null;
 }
 
 function rateInputs(crit, vals) {
@@ -614,6 +787,11 @@ function showItem(id) {
     ${it.url ? `<a class="cap" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener">Ссылка на товар ↗</a>` : ''}
     ${it.description ? `<p class="desc">${esc(it.description)}</p>` : ''}
     ${pricesSection(it)}
+    ${(() => {
+      const used = (D.recipes || []).filter(r => r.ingredients.some(i => i.itemId === it.id));
+      return used.length ? `<div class="sec"><div class="cap"><span>🍳 В рецептах</span><span class="muted num">${pad(used.length)}</span></div>
+        <div class="rchips">${used.map(r => `<button type="button" class="pchip" data-recipe="${esc(r.id)}"><span>${esc(r.name)}</span></button>`).join('')}</div></div>` : '';
+    })()}
     <div class="cap muted" style="margin-top:12px;display:flex;align-items:center;gap:8px">${ava(it.author)} добавил${it.author === D.me ? 'и вы' : 'а ' + esc(it.author)}</div>
 
     <div class="sec"><div class="cap"><span>Оценки</span><span class="muted">из 5</span></div>
@@ -638,6 +816,7 @@ function showItem(id) {
   `);
 
   document.querySelectorAll('[data-photo]').forEach(b => { b.onclick = () => openPhoto(it.photos[+b.dataset.photo]); });
+  document.querySelectorAll('[data-recipe]').forEach(b => { b.onclick = () => { openId = null; setTab('recipes'); showRecipe(b.dataset.recipe); }; });
   $('#saveRate').onclick = busy(async () => { await api.saveReview(id, readRates($('#myRate')), readAgain($('#myRate'))); toast('Оценка сохранена'); await load(); });
   $('#sendC').onclick = busy(async () => {
     const t = $('#newC').value.trim();
@@ -655,23 +834,59 @@ function showItem(id) {
   });
 }
 
-function showForm(it) {
-  const isNew = !it;
-  const cats = Object.keys(D.criteria);
-  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [], offers: [] };
-  // Уже загруженные фото — {full, thumb}; новые — {local, data, thumbData} до сохранения.
-  const photos = it.photos.slice();
+/* ---------- Фото в формах (покупки и рецепты) ---------- */
 
-  modal(isNew ? 'Новая покупочка' : `№${it.no} · Редактирование`, `
-    <h2>${isNew ? 'Новая покупочка' : esc(it.name)}</h2>
-    <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="Например, льняная рубашка">
-    <label class="cap">Фото</label><div class="gallery" id="fPh"></div>
+const photoFields = () => `<label class="cap">Фото</label><div class="gallery" id="fPh"></div>
     <div class="photo-btns">
       <label class="btn ghost" for="fCam">📷 Сфотографировать</label>
       <label class="btn ghost" for="fFile">🖼 Из галереи</label>
     </div>
     <input type="file" id="fCam" accept="image/*" capture="environment" hidden>
-    <input type="file" id="fFile" accept="image/*" multiple hidden>
+    <input type="file" id="fFile" accept="image/*" multiple hidden>`;
+
+// photos: уже загруженные — {full, thumb}; новые — {local, data, thumbData} до сохранения.
+function bindPhotos(photos) {
+  const draw = () => {
+    $('#fPh').innerHTML = photos.map((p, i) => `<div class="pv">${p.local
+      ? `<img src="data:image/jpeg;base64,${p.thumbData}" alt="">`
+      : `<img data-thumb="${esc(p.thumb)}" alt="">`}<button type="button" data-rm="${i}" title="Убрать">×</button></div>`).join('');
+    loadThumbs();
+  };
+  draw();
+  $('#fPh').onclick = e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { photos.splice(+rm.dataset.rm, 1); draw(); }
+  };
+  // Камера и галерея: на телефоне capture сразу открывает камеру, на компьютере — выбор файла.
+  $('#fFile').onchange = $('#fCam').onchange = async e => {
+    for (const f of e.target.files) {
+      try { photos.push({ local: true, data: await resize(f, 1600, 0.85), thumbData: await resize(f, 600, 0.8) }); }
+      catch (err) { toast('Не удалось прочитать ' + f.name); }
+    }
+    e.target.value = '';
+    draw();
+  };
+}
+
+async function uploadNewPhotos(photos) {
+  for (let i = 0; i < photos.length; i++) {
+    if (!photos[i].local) continue;
+    const up = await api.uploadPhoto(photos[i].data, photos[i].thumbData);
+    thumbs[up.thumb] = 'data:image/jpeg;base64,' + photos[i].thumbData;
+    photos[i] = up; // при повторном нажатии не загрузим второй раз
+  }
+}
+
+function showForm(it) {
+  const isNew = !it;
+  const cats = Object.keys(D.criteria);
+  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [], offers: [] };
+  const photos = it.photos.slice();
+
+  modal(isNew ? 'Новая покупочка' : `№${it.no} · Редактирование`, `
+    <h2>${isNew ? 'Новая покупочка' : esc(it.name)}</h2>
+    <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="Например, льняная рубашка">
+    ${photoFields()}
     <div class="two">
       <div><label class="cap" for="fPrice">Цена</label><input id="fPrice" class="num" type="number" inputmode="decimal" step="any" min="0" value="${esc(it.price)}"></div>
       <div><label class="cap" for="fCur">Валюта</label><select id="fCur">${opts(CURRENCIES, it.currency)}</select></div>
@@ -696,26 +911,7 @@ function showForm(it) {
   };
   $('#offerRows').onclick = e => { const del = e.target.closest('.oDel'); if (del) del.closest('.offer-row').remove(); };
 
-  const drawPhotos = () => {
-    $('#fPh').innerHTML = photos.map((p, i) => `<div class="pv">${p.local
-      ? `<img src="data:image/jpeg;base64,${p.thumbData}" alt="">`
-      : `<img data-thumb="${esc(p.thumb)}" alt="">`}<button type="button" data-rm="${i}" title="Убрать">×</button></div>`).join('');
-    loadThumbs();
-  };
-  drawPhotos();
-  $('#fPh').onclick = e => {
-    const rm = e.target.closest('[data-rm]');
-    if (rm) { photos.splice(+rm.dataset.rm, 1); drawPhotos(); }
-  };
-  // Камера и галерея: на телефоне capture сразу открывает камеру, на компьютере — выбор файла.
-  $('#fFile').onchange = $('#fCam').onchange = async e => {
-    for (const f of e.target.files) {
-      try { photos.push({ local: true, data: await resize(f, 1600, 0.85), thumbData: await resize(f, 600, 0.8) }); }
-      catch (err) { toast('Не удалось прочитать ' + f.name); }
-    }
-    e.target.value = '';
-    drawPhotos();
-  };
+  bindPhotos(photos);
 
   if (isNew) {
     const drawRates = () => { $('#fRateIn').innerHTML = rateInputs(D.criteria[$('#fCatS').value] || [], {}); };
@@ -726,12 +922,7 @@ function showForm(it) {
   $('#fSave').onclick = busy(async () => {
     const name = $('#fName').value.trim();
     if (!name) { toast('Укажите название'); $('#fName').focus(); return; }
-    for (let i = 0; i < photos.length; i++) {
-      if (!photos[i].local) continue;
-      const up = await api.uploadPhoto(photos[i].data, photos[i].thumbData);
-      thumbs[up.thumb] = 'data:image/jpeg;base64,' + photos[i].thumbData;
-      photos[i] = up; // при повторном нажатии не загрузим второй раз
-    }
+    await uploadNewPhotos(photos);
     const id = await api.saveItem({
       id: it.id, name, url: $('#fUrl').value, shop: $('#fShop').value, bought: $('#fDate').value, price: $('#fPrice').value,
       currency: $('#fCur').value, category: $('#fCatS').value,
@@ -902,7 +1093,15 @@ const DEMO = (() => {
         reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Эффект': 5, 'Запах': 5, 'Текстура': 4 } }], comments: [] },
       { id: 'd4', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Дом', description: '', photos: [],
         reviews: [{ author: 'Сонюшка', again: 'Нет', ratings: { 'Качество': 3, 'Внешний вид': 4 } }, { author: 'Я', again: 'Да', ratings: {} }], comments: [] },
+      { id: 'd5', created: day(0.5), author: 'Сонюшка', name: 'Мёд с фундуком', url: '', shop: 'ВкусВилл', bought: day(3).slice(0, 10), price: 690, currency: '₽', category: 'Еда', description: '', photos: [],
+        reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Вкус': 5, 'Качество': 5 } }], comments: [] },
     ],
+    recipes: [{
+      id: 'r1', created: day(0.2), author: 'Сонюшка', name: 'Сырники с мёдом и фундуком', photos: [],
+      ingredients: [{ text: 'Творог 5%', amount: '400 г', itemId: '' }, { text: 'Яйцо', amount: '1 шт', itemId: '' },
+        { text: 'Мёд с фундуком', amount: '2 ст. л.', itemId: 'd5' }, { text: 'Рисовая мука', amount: '3 ст. л.', itemId: '' }],
+      description: '1. Смешать творог, яйцо и муку.\n2. Сформировать сырники и обжарить по 3 минуты с каждой стороны.\n3. Подавать с мёдом.',
+    }],
   };
   let n = 0;
   let me = 'Я';
@@ -910,7 +1109,7 @@ const DEMO = (() => {
   const find = id => db.items.find(x => x.id === id);
   return {
     getData: () => ({
-      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items,
+      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items, recipes: db.recipes,
       criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Обувь': ['Удобство', 'Качество', 'Внешний вид', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Дом': ['Качество', 'Внешний вид', 'Практичность', 'Цена/качество'], 'Косметика': ['Эффект', 'Запах', 'Текстура', 'Цена/качество'], 'Еда': ['Вкус', 'Качество', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'] },
     }),
     saveItem: d => {
@@ -937,6 +1136,13 @@ const DEMO = (() => {
     uploadPhoto: (full, thumb) => { const id = 'f' + (++n); db.files[id] = 'data:image/jpeg;base64,' + thumb; return { full: id, thumb: id }; },
     getThumbs: ids => Object.fromEntries(ids.map(id => [id, db.files[id] || null])),
     getPhoto: id => db.files[id],
+    saveRecipe: d => {
+      let r = db.recipes.find(x => x.id === d.id);
+      if (!r) db.recipes.push(r = { id: 'nr' + (++n), created: new Date().toISOString(), author: me });
+      Object.assign(r, d, { id: r.id });
+      return r.id;
+    },
+    deleteRecipe: id => { db.recipes = db.recipes.filter(x => x.id !== id); },
   };
 })();
 
@@ -972,9 +1178,10 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 })();
 
 // Ссылка из уведомления (?item=…) сразу открывает нужную покупку.
-const linkedItem = new URLSearchParams(location.search).get('item');
-if (linkedItem) {
-  openId = linkedItem;
+const linkParams = new URLSearchParams(location.search);
+if (linkParams.get('item') || linkParams.get('recipe')) {
+  openId = linkParams.get('item');
+  openRecipeId = linkParams.get('recipe');
   history.replaceState(null, '', location.pathname + (DEMO_MODE ? '?demo' : ''));
 }
 
