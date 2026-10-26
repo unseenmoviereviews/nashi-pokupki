@@ -149,7 +149,11 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .ing-icons .iicon+.iicon{margin-left:-8px}
 .ing{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--hair)}
 .ing:last-child{border-bottom:0}
-.ing-dot{display:block;width:12px;height:12px;border-radius:50%;background:var(--butter);margin:0 auto}
+/* Ингредиенты нумеруются сами: номер пересчитывается, если строку убрать или добавить. */
+.ings,#ingRows{counter-reset:ing}
+.ing,.ing-row{counter-increment:ing}
+.ing-dot{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--butter);margin:0 auto;font:700 11px var(--display);color:#3b3236}
+.ing-dot::before{content:counter(ing)}
 .ing-link{border:0;background:none;padding:0;cursor:pointer;line-height:0}
 .ing-row{display:grid;grid-template-columns:32px 1fr 84px 30px;gap:6px;align-items:center;padding:4px 0}
 .ing-row input{padding:9px 10px}
@@ -562,7 +566,7 @@ function showRecipe(id) {
     <h2>${esc(r.name)}</h2>
     ${r.photos.length ? `<div class="gallery">${r.photos.map((p, i) => `<button type="button" data-photo="${i}" title="Открыть в полном размере"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}
     <div class="sec"><div class="cap"><span>Ингредиенты</span><span class="muted num">${pad(r.ingredients.length)}</span></div>
-      ${ings || '<div class="muted">Пока не добавлены</div>'}</div>
+      ${ings ? `<div class="ings">${ings}</div>` : '<div class="muted">Пока не добавлены</div>'}</div>
     ${r.description ? `<div class="sec"><div class="cap"><span>Как готовить</span></div><p class="desc" style="margin:0">${esc(r.description)}</p></div>` : ''}
     <div class="cap muted" style="margin-top:12px;display:flex;align-items:center;gap:8px">${ava(r.author)} записал${r.author === D.me ? 'и вы' : 'а ' + esc(r.author)} · ${fmtDate(r.created)}</div>
     <div class="btns"><button class="btn ghost" id="rEdit">Редактировать</button><button class="btn danger" id="rDel">Удалить</button></div>`);
@@ -609,6 +613,15 @@ function showRecipeForm(r) {
   const addRow = i => { $('#ingRows').insertAdjacentHTML('beforeend', ingRow(i)); loadThumbs(); return $('#ingRows').lastElementChild; };
   $('#addIng').onclick = () => addRow({}).querySelector('.iText').focus();
   $('#ingRows').onclick = e => { const del = e.target.closest('.iDel'); if (del) del.closest('.ing-row').remove(); };
+  // Enter в названии → к количеству, Enter в количестве → следующий ингредиент (новый, если это последний).
+  $('#ingRows').onkeydown = e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    const row = e.target.closest('.ing-row');
+    if (e.target.classList.contains('iText')) return row.querySelector('.iAmt').focus();
+    (row.nextElementSibling || addRow({})).querySelector('.iText').focus();
+  };
+  autoNumber($('#rDesc'), true);
   // Покупки для выбора: сначала из категории «Еда», потом остальные.
   const drawPick = () => {
     const q = $('#pickQ').value.trim().toLowerCase();
@@ -818,6 +831,7 @@ function showItem(id) {
   document.querySelectorAll('[data-photo]').forEach(b => { b.onclick = () => openPhoto(it.photos[+b.dataset.photo]); });
   document.querySelectorAll('[data-recipe]').forEach(b => { b.onclick = () => { openId = null; setTab('recipes'); showRecipe(b.dataset.recipe); }; });
   $('#saveRate').onclick = busy(async () => { await api.saveReview(id, readRates($('#myRate')), readAgain($('#myRate'))); toast('Оценка сохранена'); await load(); });
+  autoNumber($('#newC'));
   $('#sendC').onclick = busy(async () => {
     const t = $('#newC').value.trim();
     if (!t) return;
@@ -831,6 +845,27 @@ function showItem(id) {
     closeModal();
     toast('Удалено');
     await load();
+  });
+}
+
+/* ---------- Нумерованные списки в текстовых полях ---------- */
+
+// Enter после строки «1. …» сам добавляет «2. », Enter на пустом пункте заканчивает список.
+// startList — поле сразу начинается с «1. » (шаги рецепта).
+function autoNumber(ta, startList) {
+  if (startList) {
+    ta.addEventListener('focus', () => { if (!ta.value.trim()) ta.value = '1. '; });
+    ta.addEventListener('blur', () => { if (/^\s*1\.\s*$/.test(ta.value)) ta.value = ''; });
+  }
+  ta.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    const pos = ta.selectionStart, before = ta.value.slice(0, pos);
+    const line = before.slice(before.lastIndexOf('\n') + 1);
+    const m = line.match(/^(\s*)(\d+)\.\s*(.*)$/);
+    if (!m) return;
+    e.preventDefault();
+    if (m[3].trim()) ta.setRangeText('\n' + m[1] + (+m[2] + 1) + '. ', pos, ta.selectionEnd, 'end');
+    else ta.setRangeText('', pos - line.length, pos, 'end');
   });
 }
 
@@ -905,6 +940,7 @@ function showForm(it) {
     <div class="btns"><button class="btn rose" id="fSave">Сохранить</button><button class="btn ghost" data-close>Отмена</button></div>
   `);
 
+  autoNumber($('#fDesc'));
   $('#addOffer').onclick = () => {
     $('#offerRows').insertAdjacentHTML('beforeend', offerRow({ currency: $('#fCur').value }));
     $('#offerRows').lastElementChild.querySelector('.oShop').focus();
