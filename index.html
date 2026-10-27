@@ -140,7 +140,11 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .photo-btns{display:flex;gap:8px;flex-wrap:wrap}
 .photo-btns .btn{flex:1 1 140px;text-align:center;-webkit-tap-highlight-color:transparent}
 .tabs{display:flex;gap:4px;margin-top:14px;padding:4px;background:var(--paper);border-radius:99px}
-.tabs button{flex:1;border:0;background:none;padding:11px 8px;border-radius:99px;font:700 13px var(--display);color:var(--muted);cursor:pointer}
+.tabs button{flex:1;border:0;background:none;padding:11px 4px;border-radius:99px;font:700 12px var(--display);color:var(--muted);cursor:pointer;white-space:nowrap}
+.specs-form{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.specs-form .wide{grid-column:1/-1}
+.specs-form label{margin-top:10px}
+.meta.specs{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
 .tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 2px 0 var(--hair)}
 .iicon{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:var(--c);flex:0 0 auto;border:2px solid var(--card);vertical-align:middle}
 .iicon img{width:100%;height:100%;object-fit:cover}
@@ -209,6 +213,12 @@ label{display:block;margin:16px 0 6px}
 .bubble{background:var(--paper);border-radius:18px 18px 18px 6px;padding:9px 13px;max-width:80%}
 .cmt.mine .bubble{background:var(--c);color:#3b3236;border-radius:18px 18px 6px 18px}
 .bubble p{margin:2px 0 0;white-space:pre-wrap}
+.cphotos{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.cphotos button{width:96px;height:96px;border:0;padding:0;border-radius:12px;overflow:hidden;background:var(--paper);cursor:zoom-in}
+.cphotos img{width:100%;height:100%;object-fit:cover;display:block}
+.cbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.cbar label.btn{padding:12px 14px;cursor:pointer}
+#cPh:empty{display:none}
 .bubble .cap{opacity:.7}
 .bubble a{font-size:12px;color:inherit}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:99px;z-index:40;font-weight:700;max-width:calc(100vw - 32px)}
@@ -260,8 +270,19 @@ const ICONS = {
   'Косметика': 'M9 21h6V11H9Z M10 11V6l4-3v8',
   'Еда': 'M5 8h12v5a6 6 0 0 1-12 0Z M17 9h2a2 2 0 0 1 0 4h-2 M9 3v2 M13 3v2',
   'Другое': 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.3l6-.7Z',
+  // Вкладка «Алкоголь»
+  'Вино': 'M7 3h10v4a5 5 0 0 1-10 0V3Z M7 6h10 M12 12v8 M8 21h8',
+  'Игристое': 'M10 3h4l-.5 8a1.5 1.5 0 0 1-3 0L10 3Z M12 13v7 M9 21h6 M17 3l1.5-1 M18 6h2 M17 9l1.5 1',
+  'Пиво и сидр': 'M5 8h10v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Z M15 11h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2 M5 8a3 3 0 0 1 3-4 3 3 0 0 1 4 0 3 3 0 0 1 3 4',
+  'Крепкое': 'M10 2h4v4l2 3v12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9l2-3V2Z M8 13h8 M8 17h8',
+  'Ликёры': 'M6 8h12l-2 12H8L6 8Z M10 4l2 4 M6.7 12h10.6',
+  'Другой алкоголь': 'M4 4h16l-8 9-8-9Z M12 13v7 M8 21h8 M15 4l3-2',
 };
-const CAT_COLORS = { 'Одежда': 'var(--rose)', 'Обувь': 'var(--peach)', 'Техника': 'var(--sky)', 'Дом': 'var(--mint)', 'Косметика': 'var(--lilac)', 'Еда': 'var(--butter)', 'Другое': 'var(--paper)' };
+const CAT_COLORS = { 'Одежда': 'var(--rose)', 'Обувь': 'var(--peach)', 'Техника': 'var(--sky)', 'Дом': 'var(--mint)', 'Косметика': 'var(--lilac)', 'Еда': 'var(--butter)', 'Другое': 'var(--paper)',
+  'Вино': 'var(--rose)', 'Игристое': 'var(--butter)', 'Пиво и сидр': 'var(--peach)', 'Крепкое': 'var(--mint)', 'Ликёры': 'var(--lilac)', 'Другой алкоголь': 'var(--sky)' };
+// Поля алкоголя: [ключ, подпись, подсказка].
+const SPECS = [['style', 'Стиль/сорт', 'красное сухое, Санджовезе'], ['abv', 'Крепость', '13%'], ['volume', 'Объём', '0,75 л'],
+  ['origin', 'Страна/регион', 'Италия, Тоскана'], ['year', 'Год', '2021'], ['pairing', 'Сочетается с', 'паста, сыры']];
 const catColor = c => CAT_COLORS[c] || PALETTE[[...String(c)].reduce((s, ch) => s + ch.charCodeAt(0), 0) % PALETTE.length];
 const icon = (c, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="${ICONS[c] || ICONS['Другое']}"/></svg>`;
 const memberColor = name => PALETTE[Math.max(0, (D ? D.members : []).indexOf(name)) % 2];
@@ -383,6 +404,8 @@ const itemAvg = it => avg(it.reviews.flatMap(r => Object.values(r.ratings)));
 const priceNum = it => it.price === '' || it.price == null ? null : Number(it.price);
 const money = it => priceNum(it) == null ? '—' : priceNum(it).toLocaleString('ru-RU') + ' ' + (it.currency || '');
 const fmtPrice = (n, cur) => Number(n).toLocaleString('ru-RU') + ' ' + (cur || '');
+// Короткая подпись алкоголя для карточки: «13% · 0,75 л».
+const specsShort = it => it.specs ? [it.specs.abv, it.specs.volume].filter(Boolean).join(' · ') : '';
 
 /* ---------- Цены в разных магазинах ---------- */
 
@@ -461,7 +484,7 @@ function start() {
   if (!DEMO_MODE && (!cfg.api || !cfg.key)) return showLogin();
   $('#app').innerHTML = `
     <div class="wrap"><nav class="tabs">
-      <button type="button" data-tab="items">🛍️ Покупочки</button><button type="button" data-tab="recipes">🍳 Рецепты</button>
+      <button type="button" data-tab="items">🛍️ Покупочки</button><button type="button" data-tab="alcohol">🍷 Алкоголь</button><button type="button" data-tab="recipes">🍳 Рецепты</button>
     </nav></div>
     <div id="tabRecipes" hidden><div class="wrap">
       <div class="filters"><input id="rq" type="search" placeholder="Поиск по рецептам и ингредиентам"></div>
@@ -497,16 +520,19 @@ function start() {
 
 async function load() {
   D = await api.getData();
-  // Порядковые номера по дате добавления: 01, 02…
-  D.items.slice().sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); });
+  D.alcoholCats = D.alcoholCats || [];
+  // Порядковые номера по дате добавления — отдельно в покупках и в алкоголе: 01, 02…
+  ['', 'alcohol'].forEach(sec => D.items.filter(it => (it.section || '') === sec)
+    .sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); }));
+  // Ссылка из уведомления на бутылочку открывает вкладку «Алкоголь».
+  const linked = openId && D.items.find(x => x.id === openId);
+  if (linked && tab !== (linked.section === 'alcohol' ? 'alcohol' : 'items')) tab = linked.section === 'alcohol' ? 'alcohol' : 'items';
   $('#me').innerHTML = `${ava(D.me)}<button class="link" id="rename" title="Профиль">${esc(D.me)} ✎</button><button class="link" id="bell" title="Уведомления" style="border:0">🔔</button>${DEMO_MODE ? '<span class="muted">· демо</span>' : '<button class="link cap muted" id="out">выйти</button>'}`;
   $('#rename').onclick = $('#bell').onclick = showProfile;
   if ($('#out')) $('#out').onclick = () => { logout(); showLogin(); };
-  setOpts($('#fCat'), 'Все категории', Object.keys(D.criteria));
   setOpts($('#fAgain'), 'Купили бы снова?', D.again);
   D.recipes = D.recipes || [];
-  renderOverview();
-  render();
+  setTab(tab);
   renderRecipes();
   if (openId) showItem(openId);
   else if (openRecipeId) showRecipe(openRecipeId);
@@ -515,14 +541,27 @@ async function load() {
 
 /* ---------- Вкладки ---------- */
 
+// Вкладки «Покупочки» и «Алкоголь» — один и тот же список, отфильтрованный по разделу.
 let tab = 'items';
+const isAlcTab = () => tab === 'alcohol';
+const sectionOf = it => (it.section === 'alcohol' ? 'alcohol' : '');
+const sectionItems = () => D.items.filter(it => (sectionOf(it) === 'alcohol') === isAlcTab());
+const catsFor = section => Object.keys(D.criteria).filter(c => D.alcoholCats.includes(c) === (section === 'alcohol'));
+
 function setTab(t) {
-  tab = t === 'recipes' ? 'recipes' : 'items';
+  const prev = tab;
+  tab = ['items', 'alcohol', 'recipes'].includes(t) ? t : 'items';
   store.set('tab', tab);
-  $('#tabItems').hidden = tab !== 'items';
+  $('#tabItems').hidden = tab === 'recipes';
   $('#tabRecipes').hidden = tab !== 'recipes';
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  $('#add').title = tab === 'recipes' ? 'Добавить рецепт' : 'Добавить покупку';
+  $('#add').title = { items: 'Добавить покупку', alcohol: 'Добавить бутылочку', recipes: 'Добавить рецепт' }[tab];
+  if (!D || tab === 'recipes') return;
+  if (prev !== tab) { $('#fCat').value = ''; $('#q').value = ''; }
+  setOpts($('#fCat'), 'Все категории', catsFor(isAlcTab() ? 'alcohol' : ''));
+  $('#q').placeholder = isAlcTab() ? 'Поиск: название, сорт, страна…' : 'Поиск';
+  renderOverview();
+  render();
 }
 
 /* ---------- Рецепты ---------- */
@@ -667,7 +706,7 @@ function setOpts(sel, allLabel, list) {
 
 // Сводка: цветные плашки с цифрами и полоса долей по категориям.
 function renderOverview() {
-  const items = D.items;
+  const items = sectionItems();
   if (!items.length) { $('#overview').innerHTML = ''; return; }
   const all = avg(items.map(itemAvg).filter(v => v != null));
   const answers = items.flatMap(it => Object.values(againBy(it)));
@@ -677,7 +716,7 @@ function renderOverview() {
   const cats = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   $('#overview').innerHTML = `
     <div class="stats">
-      <div class="stat" style="--c:var(--rose)"><span class="cap">покупок</span><b class="num">${pad(items.length)}</b></div>
+      <div class="stat" style="--c:var(--rose)"><span class="cap">${isAlcTab() ? 'бутылочек' : 'покупок'}</span><b class="num">${pad(items.length)}</b></div>
       <div class="stat" style="--c:var(--sky)"><span class="cap">средняя</span><b class="num">${all ?? '—'}</b></div>
       <div class="stat" style="--c:var(--mint)"><span class="cap">снова: да</span><b class="num">${yes}</b></div>
     </div>
@@ -693,12 +732,13 @@ function render() {
     cheap: (a, b) => (priceNum(a) ?? 1e15) - (priceNum(b) ?? 1e15),
     expensive: (a, b) => (priceNum(b) ?? -1) - (priceNum(a) ?? -1),
   };
-  const items = D.items
+  const all = sectionItems();
+  const items = all
     .filter(it => (!cat || it.category === cat) && (!ag || Object.values(againBy(it)).includes(ag)) &&
-      (!q || [it.name, it.shop, it.description].join(' ').toLowerCase().includes(q)))
+      (!q || [it.name, it.shop, it.description, ...Object.values(it.specs || {})].join(' ').toLowerCase().includes(q)))
     .sort(sorts[$('#fSort').value]);
   $('#list').innerHTML = items.length ? items.map(card).join('') : `<div class="empty">${emptyArt()}${
-    D.items.length ? 'Ничего не нашлось' : 'Здесь появятся ваши покупочки<br><span class="muted" style="font:500 14px Inter,sans-serif">Нажмите «+», чтобы добавить первую</span>'}</div>`;
+    all.length ? 'Ничего не нашлось' : `${isAlcTab() ? 'Здесь появятся ваши бутылочки' : 'Здесь появятся ваши покупочки'}<br><span class="muted" style="font:500 14px Inter,sans-serif">Нажмите «+», чтобы добавить первую</span>`}</div>`;
   loadThumbs();
 }
 
@@ -715,7 +755,7 @@ function card(it) {
       <span class="no">№${it.no}</span>${sticker(it)}
     </div>
     <div class="n">${esc(it.name)}</div>
-    <div class="p num">${esc(money(it))}${cheaperOffer(it) ? `<span class="cheap-tag" title="${esc(cheaperOffer(it).shop)}">↓ ${esc(fmtPrice(cheaperOffer(it).price, it.currency))}</span>` : `<span class="muted"> · ${esc(it.category)}</span>`}</div>
+    <div class="p num">${esc(money(it))}${cheaperOffer(it) ? `<span class="cheap-tag" title="${esc(cheaperOffer(it).shop)}">↓ ${esc(fmtPrice(cheaperOffer(it).price, it.currency))}</span>` : `<span class="muted"> · ${esc(specsShort(it) || it.category)}</span>`}</div>
     <div class="r"><b class="num">${a ?? '—'}</b>${dots(a)}</div>
   </div>`;
 }
@@ -787,7 +827,8 @@ function showItem(id) {
   }).join('');
 
   const comments = it.comments.map(c => `<div class="cmt ${c.author === D.me ? 'mine' : ''}" style="--c:${memberColor(c.author)}">${ava(c.author)}
-    <div class="bubble"><span class="cap">${esc(c.author)} · ${fmtDate(c.date)}${c.author === D.me ? ` · <a href="#" data-delc="${esc(c.id)}">удалить</a>` : ''}</span><p>${esc(c.text)}</p></div></div>`).join('');
+    <div class="bubble"><span class="cap">${esc(c.author)} · ${fmtDate(c.date)}${c.author === D.me ? ` · <a href="#" data-delc="${esc(c.id)}">удалить</a>` : ''}</span>${c.text ? `<p>${esc(c.text)}</p>` : ''}${(c.photos || []).length ? `<div class="cphotos">${c.photos.map((p, i) =>
+      `<button type="button" data-cphoto="${esc(c.id)}:${i}" title="Открыть фото"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}</div></div>`).join('');
 
   modal(`№${it.no} · ${esc(it.category)}`, `
     <h2>${esc(it.name)}</h2>
@@ -796,6 +837,8 @@ function showItem(id) {
       <div><span class="cap muted">куплено</span><b class="num">${esc(fmtDate(it.bought) || '—')}</b></div>
       <div><span class="cap muted">магазин</span><b>${esc(it.shop || '—')}</b></div>
     </div>
+    ${Object.keys(it.specs || {}).length ? `<div class="meta specs">${SPECS.filter(([k]) => it.specs[k]).map(([k, label]) =>
+      `<div><span class="cap muted">${esc(label)}</span><b>${esc(it.specs[k])}</b></div>`).join('')}</div>` : ''}
     ${it.photos.length ? `<div class="gallery">${it.photos.map((p, i) => `<button type="button" data-photo="${i}" title="Открыть в полном размере"><img data-thumb="${esc(p.thumb)}" alt=""></button>`).join('')}</div>` : ''}
     ${it.url ? `<a class="cap" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener">Ссылка на товар ↗</a>` : ''}
     ${it.description ? `<p class="desc">${esc(it.description)}</p>` : ''}
@@ -823,7 +866,11 @@ function showItem(id) {
     <div class="sec"><div class="cap"><span>Впечатления</span><span class="muted num">${pad(it.comments.length)}</span></div>
       ${comments || '<div class="muted">Пока нет комментариев</div>'}
       <label class="cap" for="newC">Новый комментарий</label><textarea id="newC" style="min-height:60px"></textarea>
-      <div class="btns"><button class="btn ghost" id="sendC">Отправить</button></div></div>
+      <div class="gallery" id="cPh"></div>
+      <div class="cbar"><button class="btn ghost" id="sendC">Отправить</button>
+        <label class="btn ghost" for="cCam" title="Сфотографировать">📷</label><label class="btn ghost" for="cFile" title="Фото из галереи">🖼</label></div>
+      <input type="file" id="cCam" accept="image/*" capture="environment" hidden>
+      <input type="file" id="cFile" accept="image/*" multiple hidden></div>
 
     <div class="btns"><button class="btn ghost" id="edit">Редактировать</button><button class="btn danger" id="del">Удалить</button></div>
   `);
@@ -832,10 +879,18 @@ function showItem(id) {
   document.querySelectorAll('[data-recipe]').forEach(b => { b.onclick = () => { openId = null; setTab('recipes'); showRecipe(b.dataset.recipe); }; });
   $('#saveRate').onclick = busy(async () => { await api.saveReview(id, readRates($('#myRate')), readAgain($('#myRate'))); toast('Оценка сохранена'); await load(); });
   autoNumber($('#newC'));
+  // Фото к комментарию: выбираются заранее, загружаются при отправке.
+  const cPhotos = [];
+  bindPhotos(cPhotos, { gallery: '#cPh', inputs: ['#cCam', '#cFile'] });
+  document.querySelectorAll('[data-cphoto]').forEach(b => {
+    const [cid, i] = b.dataset.cphoto.split(':');
+    b.onclick = () => openPhoto(it.comments.find(c => c.id === cid).photos[+i]);
+  });
   $('#sendC').onclick = busy(async () => {
     const t = $('#newC').value.trim();
-    if (!t) return;
-    await api.addComment(id, t);
+    if (!t && !cPhotos.length) return;
+    await uploadNewPhotos(cPhotos);
+    await api.addComment(id, t, cPhotos);
     await load();
   });
   $('#edit').onclick = () => showForm(it);
@@ -880,20 +935,23 @@ const photoFields = () => `<label class="cap">Фото</label><div class="galler
     <input type="file" id="fFile" accept="image/*" multiple hidden>`;
 
 // photos: уже загруженные — {full, thumb}; новые — {local, data, thumbData} до сохранения.
-function bindPhotos(photos) {
+// По умолчанию работает с полями формы (#fPh, #fCam, #fFile); у комментариев свои.
+function bindPhotos(photos, ids = { gallery: '#fPh', inputs: ['#fCam', '#fFile'] }) {
+  const box = $(ids.gallery);
   const draw = () => {
-    $('#fPh').innerHTML = photos.map((p, i) => `<div class="pv">${p.local
+    box.innerHTML = photos.map((p, i) => `<div class="pv">${p.local
       ? `<img src="data:image/jpeg;base64,${p.thumbData}" alt="">`
       : `<img data-thumb="${esc(p.thumb)}" alt="">`}<button type="button" data-rm="${i}" title="Убрать">×</button></div>`).join('');
     loadThumbs();
   };
   draw();
-  $('#fPh').onclick = e => {
+  box.onclick = e => {
     const rm = e.target.closest('[data-rm]');
     if (rm) { photos.splice(+rm.dataset.rm, 1); draw(); }
   };
   // Камера и галерея: на телефоне capture сразу открывает камеру, на компьютере — выбор файла.
-  $('#fFile').onchange = $('#fCam').onchange = async e => {
+  ids.inputs.forEach(sel => { $(sel).onchange = onPick; });
+  async function onPick(e) {
     for (const f of e.target.files) {
       try { photos.push({ local: true, data: await resize(f, 1600, 0.85), thumbData: await resize(f, 600, 0.8) }); }
       catch (err) { toast('Не удалось прочитать ' + f.name); }
@@ -914,14 +972,20 @@ async function uploadNewPhotos(photos) {
 
 function showForm(it) {
   const isNew = !it;
-  const cats = Object.keys(D.criteria);
-  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [], offers: [] };
+  const section = it ? sectionOf(it) : isAlcTab() ? 'alcohol' : '';
+  const alc = section === 'alcohol';
+  const cats = catsFor(section);
+  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [], offers: [], specs: {} };
   const photos = it.photos.slice();
+  const title = alc ? 'Новая бутылочка' : 'Новая покупочка';
 
-  modal(isNew ? 'Новая покупочка' : `№${it.no} · Редактирование`, `
-    <h2>${isNew ? 'Новая покупочка' : esc(it.name)}</h2>
-    <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="Например, льняная рубашка">
+  modal(isNew ? (alc ? '🍷 ' : '') + title : `№${it.no} · Редактирование`, `
+    <h2>${isNew ? title : esc(it.name)}</h2>
+    <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="${alc ? 'Например, Chianti Classico' : 'Например, льняная рубашка'}">
     ${photoFields()}
+    ${alc ? `<div class="sec"><div class="cap"><span>Характеристики</span><span class="muted">по желанию</span></div>
+      <div class="specs-form">${SPECS.map(([k, label, hint]) => `<div${k === 'style' || k === 'pairing' ? ' class="wide"' : ''}>
+        <label class="cap" for="sp_${k}">${esc(label)}</label><input id="sp_${k}" data-spec="${k}" value="${esc((it.specs || {})[k] || '')}" placeholder="${esc(hint)}"></div>`).join('')}</div></div>` : ''}
     <div class="two">
       <div><label class="cap" for="fPrice">Цена</label><input id="fPrice" class="num" type="number" inputmode="decimal" step="any" min="0" value="${esc(it.price)}"></div>
       <div><label class="cap" for="fCur">Валюта</label><select id="fCur">${opts(CURRENCIES, it.currency)}</select></div>
@@ -961,7 +1025,8 @@ function showForm(it) {
     await uploadNewPhotos(photos);
     const id = await api.saveItem({
       id: it.id, name, url: $('#fUrl').value, shop: $('#fShop').value, bought: $('#fDate').value, price: $('#fPrice').value,
-      currency: $('#fCur').value, category: $('#fCatS').value,
+      currency: $('#fCur').value, category: $('#fCatS').value, section,
+      specs: Object.fromEntries([...document.querySelectorAll('[data-spec]')].map(i => [i.dataset.spec, i.value.trim()]).filter(([, v]) => v)),
       description: $('#fDesc').value, photos,
       offers: [...document.querySelectorAll('#offerRows .offer-row')].map(r => ({
         shop: r.querySelector('.oShop').value, price: r.querySelector('.oPrice').value,
@@ -1131,6 +1196,12 @@ const DEMO = (() => {
         reviews: [{ author: 'Сонюшка', again: 'Нет', ratings: { 'Качество': 3, 'Внешний вид': 4 } }, { author: 'Я', again: 'Да', ratings: {} }], comments: [] },
       { id: 'd5', created: day(0.5), author: 'Сонюшка', name: 'Мёд с фундуком', url: '', shop: 'ВкусВилл', bought: day(3).slice(0, 10), price: 690, currency: '₽', category: 'Еда', description: '', photos: [],
         reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Вкус': 5, 'Качество': 5 } }], comments: [] },
+      { id: 'a1', created: day(2.5), author: 'Сонюшка', name: 'Chianti Classico', url: '', shop: 'Ароматный мир', bought: day(9).slice(0, 10), price: 1890, currency: '₽', category: 'Вино', description: 'Брали к пасте, очень мягкое.', photos: [], section: 'alcohol',
+        specs: { style: 'красное сухое, Санджовезе', abv: '13%', volume: '0,75 л', origin: 'Италия, Тоскана', year: '2021', pairing: 'паста, сыры' },
+        offers: [{ shop: 'ВинЛаб', price: 1690, currency: '₽', url: '' }],
+        reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Вкус': 5, 'Аромат': 4, 'Послевкусие': 4 } }, { author: 'Я', again: 'Да', ratings: { 'Вкус': 4, 'Баланс': 5 } }], comments: [] },
+      { id: 'a2', created: day(1.5), author: 'Я', name: 'Сидр грушевый', url: '', shop: 'ВкусВилл', bought: day(4).slice(0, 10), price: 210, currency: '₽', category: 'Пиво и сидр', description: '', photos: [], section: 'alcohol',
+        specs: { abv: '5%', volume: '0,45 л', origin: 'Россия' }, reviews: [{ author: 'Я', again: 'Возможно', ratings: { 'Вкус': 4, 'Освежает': 5 } }], comments: [] },
     ],
     recipes: [{
       id: 'r1', created: day(0.2), author: 'Сонюшка', name: 'Сырники с мёдом и фундуком', photos: [],
@@ -1145,8 +1216,8 @@ const DEMO = (() => {
   const find = id => db.items.find(x => x.id === id);
   return {
     getData: () => ({
-      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items, recipes: db.recipes,
-      criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Обувь': ['Удобство', 'Качество', 'Внешний вид', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Дом': ['Качество', 'Внешний вид', 'Практичность', 'Цена/качество'], 'Косметика': ['Эффект', 'Запах', 'Текстура', 'Цена/качество'], 'Еда': ['Вкус', 'Качество', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'] },
+      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items, recipes: db.recipes, alcoholCats: ['Вино', 'Игристое', 'Пиво и сидр', 'Крепкое', 'Ликёры', 'Другой алкоголь'],
+      criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Обувь': ['Удобство', 'Качество', 'Внешний вид', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Дом': ['Качество', 'Внешний вид', 'Практичность', 'Цена/качество'], 'Косметика': ['Эффект', 'Запах', 'Текстура', 'Цена/качество'], 'Еда': ['Вкус', 'Качество', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'], 'Вино': ['Вкус', 'Аромат', 'Послевкусие', 'Баланс', 'Цена/качество'], 'Игристое': ['Вкус', 'Аромат', 'Перляж', 'Свежесть', 'Цена/качество'], 'Пиво и сидр': ['Вкус', 'Аромат', 'Освежает', 'Послевкусие', 'Цена/качество'], 'Крепкое': ['Вкус', 'Аромат', 'Мягкость', 'Послевкусие', 'Цена/качество'], 'Ликёры': ['Вкус', 'Аромат', 'Баланс сладости', 'Цена/качество'], 'Другой алкоголь': ['Вкус', 'Аромат', 'Послевкусие', 'Цена/качество'] },
     }),
     saveItem: d => {
       let it = find(d.id);
@@ -1167,7 +1238,7 @@ const DEMO = (() => {
       me = name;
       return name;
     },
-    addComment: (id, text) => { find(id).comments.push({ id: 'c' + (++n), author: me, date: new Date().toISOString(), text }); },
+    addComment: (id, text, photos) => { find(id).comments.push({ id: 'c' + (++n), author: me, date: new Date().toISOString(), text, photos: photos || [] }); },
     deleteComment: cid => db.items.forEach(it => { it.comments = it.comments.filter(c => c.id !== cid); }),
     uploadPhoto: (full, thumb) => { const id = 'f' + (++n); db.files[id] = 'data:image/jpeg;base64,' + thumb; return { full: id, thumb: id }; },
     getThumbs: ids => Object.fromEntries(ids.map(id => [id, db.files[id] || null])),

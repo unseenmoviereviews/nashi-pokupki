@@ -23,6 +23,18 @@ const SHARE_WITH = [];
 const AGAIN = ['Да', 'Возможно', 'Нет'];
 
 // Стартовые критерии. Потом их можно менять прямо на листе «Критерии».
+// Категории вкладки «Алкоголь» и их критерии. Добавляются на лист «Критерии», если их там ещё нет.
+const ALCOHOL_CRITERIA = [
+  ['Вино', 'Вкус, Аромат, Послевкусие, Баланс, Цена/качество'],
+  ['Игристое', 'Вкус, Аромат, Перляж, Свежесть, Цена/качество'],
+  ['Пиво и сидр', 'Вкус, Аромат, Освежает, Послевкусие, Цена/качество'],
+  ['Крепкое', 'Вкус, Аромат, Мягкость, Послевкусие, Цена/качество'],
+  ['Ликёры', 'Вкус, Аромат, Баланс сладости, Цена/качество'],
+  ['Другой алкоголь', 'Вкус, Аромат, Послевкусие, Цена/качество'],
+];
+// Дополнительные поля алкоголя: [ключ, подпись].
+const SPECS = [['style', 'Стиль/сорт'], ['abv', 'Крепость'], ['volume', 'Объём'], ['origin', 'Страна/регион'], ['year', 'Год'], ['pairing', 'Сочетается с']];
+
 const DEFAULT_CRITERIA = [
   ['Одежда', 'Качество, Посадка, Внешний вид, Удобство, Цена/качество'],
   ['Обувь', 'Удобство, Качество, Внешний вид, Цена/качество'],
@@ -41,11 +53,12 @@ const SCHEMA = {
     ['url', 'Ссылка'], ['shop', 'Магазин'], ['bought', 'Дата покупки'], ['price', 'Цена'], ['currency', 'Валюта'],
     ['category', 'Категория'], ['again', 'Купили бы снова'], ['description', 'Описание'],
     ['avg', 'Средняя оценка'], ['photoLinks', 'Фото'], ['photos', '_photos'],
-    ['offersText', 'Цены в других магазинах'], ['offers', '_offers']],
+    ['offersText', 'Цены в других магазинах'], ['offers', '_offers'],
+    ['section', 'Раздел'], ['specsText', 'Характеристики'], ['specs', '_specs']],
   reviews: [['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'], ['updated', 'Обновлено'],
     ['avg', 'Средняя'], ['ratingsText', 'Оценки'], ['ratings', '_ratings'], ['again', 'Купил(а) бы снова']],
   comments: [['id', 'ID'], ['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'],
-    ['date', 'Дата'], ['text', 'Текст']],
+    ['date', 'Дата'], ['text', 'Текст'], ['photoLinks', 'Фото'], ['photos', '_photos']],
   criteria: [['category', 'Категория'], ['list', 'Критерии (через запятую)']],
   recipes: [['id', 'ID'], ['created', 'Добавлено'], ['author', 'Автор'], ['name', 'Название'],
     ['ingredientsText', 'Ингредиенты'], ['description', 'Как готовить'], ['photoLinks', 'Фото'],
@@ -131,6 +144,7 @@ function resetKeys() {
 
 function getData() {
   const user = me_();
+  ensureAlcoholCriteria_();
   const criteria = {};
   read_('criteria').forEach(c => {
     if (c.category) criteria[c.category] = String(c.list).split(',').map(s => s.trim()).filter(String);
@@ -142,6 +156,7 @@ function getData() {
       bought: it.bought ? String(it.bought).slice(0, 10) : '',
       price: it.price, currency: it.currency, category: it.category, again: it.again,
       description: it.description, photos: parse_(it.photos, []), offers: parse_(it.offers, []), reviews: [], comments: [],
+      section: it.section || '', specs: parse_(it.specs, {}),
     };
     byId[it.id] = out;
     return out;
@@ -150,13 +165,26 @@ function getData() {
     if (byId[r.itemId]) byId[r.itemId].reviews.push({ author: r.author, updated: r.updated, ratings: parse_(r.ratings, {}), again: r.again || '' });
   });
   read_('comments').forEach(c => {
-    if (byId[c.itemId]) byId[c.itemId].comments.push({ id: c.id, author: c.author, date: c.date, text: c.text });
+    if (byId[c.itemId]) byId[c.itemId].comments.push({ id: c.id, author: c.author, date: c.date, text: c.text, photos: parse_(c.photos, []) });
   });
   const recipes = read_('recipes').map(r => ({
     id: r.id, created: r.created, author: r.author, name: r.name, description: r.description,
     ingredients: parse_(r.ingredients, []), photos: parse_(r.photos, []),
   }));
-  return { me: user.name, members: members_(), criteria, again: AGAIN, items, recipes, pushKey: vapidKeys_().pub };
+  return { me: user.name, members: members_(), criteria, again: AGAIN, items, recipes, pushKey: vapidKeys_().pub,
+    alcoholCats: ALCOHOL_CRITERIA.map(c => c[0]) };
+}
+
+/** Один раз дописывает категории алкоголя на лист «Критерии» — дальше их можно править там. */
+function ensureAlcoholCriteria_() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('ALCOHOL_CRITERIA_ADDED')) return;
+  withLock_(() => {
+    if (props.getProperty('ALCOHOL_CRITERIA_ADDED')) return;
+    const have = read_('criteria').map(c => String(c.category));
+    ALCOHOL_CRITERIA.filter(c => have.indexOf(c[0]) < 0).forEach(c => write_('criteria', { category: c[0], list: c[1] }));
+    props.setProperty('ALCOHOL_CRITERIA_ADDED', '1');
+  });
 }
 
 /* ---------- Рецепты ---------- */
@@ -239,10 +267,17 @@ function saveItem(d) {
     })).filter(o => o.shop || o.price !== '').slice(0, 10);
     it.offers = JSON.stringify(offers);
     it.offersText = offers.map(o => (o.shop || '?') + ': ' + (o.price !== '' ? o.price + ' ' + o.currency : '—')).join('; ');
+
+    // Раздел «Алкоголь» и его характеристики (крепость, объём, год…).
+    it.section = d.section === 'alcohol' ? 'alcohol' : '';
+    const specs = {};
+    if (it.section) SPECS.forEach(([k]) => { const v = String((d.specs || {})[k] || '').trim().slice(0, 80); if (v) specs[k] = v; });
+    it.specs = Object.keys(specs).length ? JSON.stringify(specs) : '';
+    it.specsText = SPECS.filter(([k]) => specs[k]).map(([k, label]) => label + ': ' + specs[k]).join('; ');
     write_('items', it);
     return it.id;
   });
-  if (!d.id) notify_({ type: 'item', author: user.name, itemId: id, name: String(d.name || '').trim() });
+  if (!d.id) notify_({ type: d.section === 'alcohol' ? 'alcohol' : 'item', author: user.name, itemId: id, name: String(d.name || '').trim() });
   return id;
 }
 
@@ -253,6 +288,7 @@ function deleteItem(id) {
     if (!it) return;
     parse_(it.photos, []).forEach(trashPhoto_);
     deleteRows_('reviews', r => r.itemId === id);
+    read_('comments').filter(c => c.itemId === id).forEach(c => parse_(c.photos, []).forEach(trashPhoto_));
     deleteRows_('comments', c => c.itemId === id);
     sheet_('items').deleteRow(it._row);
   });
@@ -302,22 +338,28 @@ function saveReview(itemId, ratings, again) {
   if (news) notify_(news);
 }
 
-function addComment(itemId, text) {
+/** Комментарий: текст и/или фото (уже загруженные через uploadPhoto). */
+function addComment(itemId, text, photos) {
   const user = me_();
   text = String(text || '').trim();
-  if (!text) return;
+  photos = (photos || []).map(p => ({ full: String(p.full), thumb: String(p.thumb) })).slice(0, 6);
+  if (!text && !photos.length) return;
   const name = withLock_(() => {
     const it = read_('items').find(x => x.id === itemId);
     if (!it) throw new Error('Товар не найден');
-    write_('comments', { id: newId_(), itemId, itemName: it.name, author: user.name, date: new Date(), text });
+    write_('comments', { id: newId_(), itemId, itemName: it.name, author: user.name, date: new Date(), text,
+      photos: photos.length ? JSON.stringify(photos) : '',
+      photoLinks: photos.map(p => 'https://drive.google.com/file/d/' + p.full + '/view').join('\n') });
     return it.name;
   });
-  notify_({ type: 'comment', author: user.name, itemId, name, text: text.slice(0, 120) });
+  const shown = (photos.length ? '📷 ' : '') + (text || 'фото');
+  notify_({ type: 'comment', author: user.name, itemId, name, text: shown.slice(0, 120) });
 }
 
 function deleteComment(id) {
   const user = me_();
   return withLock_(() => {
+    read_('comments').filter(c => c.id === id && c.author === user.name).forEach(c => parse_(c.photos, []).forEach(trashPhoto_));
     deleteRows_('comments', c => c.id === id && c.author === user.name);
   });
 }
@@ -437,7 +479,7 @@ function getNews() {
   const e = events.find(x => x.t > seen) || events[events.length - 1];
   if (!e) return null;
   props.setProperty('SEEN_' + user.name, String(Math.max(seen, e.t)));
-  const what = { item: 'новая покупочка', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', test: 'проверка' }[e.type] || 'что-то новое';
+  const what = { item: 'новая покупочка', alcohol: 'новая бутылочка 🍷', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', test: 'проверка' }[e.type] || 'что-то новое';
   const body = e.type === 'comment' ? e.name + ' — «' + e.text + '»' : e.text ? e.name + ' — ' + e.text : e.name;
   const url = e.recipeId ? './?recipe=' + encodeURIComponent(e.recipeId) : e.itemId ? './?item=' + encodeURIComponent(e.itemId) : './';
   return { title: e.author + ': ' + what, body, tag: e.type + '-' + e.t, url };
