@@ -178,6 +178,7 @@ main{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:
 .oDel{justify-self:start;border:0;background:none;color:var(--rose-ink);font:700 12px var(--display);cursor:pointer;padding:2px 0}
 .pick button.on[data-a="Возможно"]{background:var(--lilac)}
 .install{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 10px 10px 16px;border-radius:20px;background:var(--lilac);color:#3b3236;font-size:14px}
+.install.offline{background:var(--butter)}
 .install[hidden]{display:none}
 .install span{flex:1}
 .install .btn{padding:10px 14px;white-space:nowrap}
@@ -221,6 +222,17 @@ label{display:block;margin:16px 0 6px}
 #cPh:empty{display:none}
 .bubble .cap{opacity:.7}
 .bubble a{font-size:12px;color:inherit}
+.scan-btn{flex:0 0 auto;width:44px;height:44px;border:0;border-radius:50%;background:var(--paper);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.name-row{display:flex;gap:8px;align-items:center}
+.barcode-line{font-size:13px;margin-top:4px}
+.barcode-line:empty{display:none}
+.scanner{position:fixed;inset:0;z-index:50;background:#000;display:flex;align-items:center;justify-content:center}
+.scanner video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scan-frame{position:relative;width:min(80vw,340px);height:min(40vw,170px);border:3px solid var(--rose);border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+.scan-hint{position:absolute;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));text-align:center;color:#fff;font:700 15px var(--display)}
+.scanner .close{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;background:rgba(255,255,255,.85)}
+.switch{border:0;border-radius:99px;padding:10px 16px;font:700 13px var(--display);cursor:pointer;background:var(--paper);color:var(--ink)}
+.switch.on{background:var(--mint);color:#3b3236}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:99px;z-index:40;font-weight:700;max-width:calc(100vw - 32px)}
 </style>
 </head>
@@ -241,6 +253,7 @@ label{display:block;margin:16px 0 6px}
   <div class="wrap"><div class="tagline"><span class="cap muted">купили · оценили · любим</span><span class="who cap" id="me"></span></div></div>
   <div class="wrap"><div class="install" id="install" hidden></div></div>
   <div class="wrap"><div class="install" id="notify" hidden></div></div>
+  <div class="wrap"><div class="install offline" id="offline" hidden></div></div>
 </header>
 
 <div id="app"></div>
@@ -313,7 +326,10 @@ const keyStore = {
   },
 };
 const keyCookie = () => { const m = document.cookie.match(/(?:^|; )pk=([^;]*)/); return m ? decodeURIComponent(m[1]) : ''; };
-function keyDb(op, v) {
+const keyDb = (op, v) => idb(op, 'key', v);
+
+// Хранилище на телефоне (IndexedDB): ключ входа, данные и миниатюры для просмотра без интернета.
+function idb(op, key, v) {
   return new Promise(done => {
     try {
       const open = indexedDB.open('pokupochki', 1);
@@ -321,7 +337,7 @@ function keyDb(op, v) {
       open.onerror = () => done('');
       open.onsuccess = () => {
         const st = open.result.transaction('kv', op === 'get' ? 'readonly' : 'readwrite').objectStore('kv');
-        const q = op === 'get' ? st.get('key') : op === 'put' ? st.put(v, 'key') : st.delete('key');
+        const q = op === 'get' ? st.get(key) : op === 'put' ? st.put(v, key) : st.delete(key);
         q.onsuccess = () => done(op === 'get' ? q.result || '' : '');
         q.onerror = () => done('');
       };
@@ -333,7 +349,7 @@ async function call(fn, ...args) {
   if (DEMO_MODE) return JSON.parse(JSON.stringify(DEMO[fn](...args) ?? null));
   // text/plain — чтобы браузер не делал лишний CORS-запрос, который Apps Script не поддерживает.
   const res = await fetch(cfg.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: cfg.key, fn, args }) })
-    .catch(() => { throw new Error('Нет связи с сервером — проверьте интернет'); });
+    .catch(() => { throw Object.assign(new Error('Нет связи с сервером — проверьте интернет'), { offline: true }); });
   const j = await res.json().catch(() => { throw new Error('Сервер ответил не так, как ожидалось. Проверьте адрес API.'); });
   if (!j.ok) {
     if (j.error === 'Неверный ключ') logout();
@@ -356,10 +372,10 @@ const fail = e => toast('Ошибка: ' + (e && e.message || e));
 const busy = fn => async e => {
   const b = e.currentTarget;
   if (b.disabled) return;
-  const label = b.textContent;
+  const label = b.innerHTML;
   b.disabled = true;
   b.textContent = '…';
-  try { await fn(e); } catch (err) { fail(err); } finally { b.disabled = false; b.textContent = label; }
+  try { await fn(e); } catch (err) { fail(err); } finally { b.disabled = false; b.innerHTML = label; }
 };
 
 /* ---------- Вход ---------- */
@@ -494,6 +510,7 @@ function start() {
     <section class="wrap" id="overview"></section>
     <div class="wrap">
       <div class="filters">
+        <button type="button" class="scan-btn" id="scanFind" title="Сканировать штрихкод — уже покупали?">${BARCODE_ICON}</button>
         <input id="q" type="search" placeholder="Поиск">
         <select id="fCat"></select>
         <select id="fAgain"></select>
@@ -515,11 +532,24 @@ function start() {
   document.querySelectorAll('.tabs button').forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
   setTab(openRecipeId ? 'recipes' : store.get('tab') || 'items');
   $('#add').onclick = () => (tab === 'recipes' ? showRecipeForm() : showForm());
+  $('#scanFind').onclick = scanAndFind;
   load().catch(e => (cfg.key && !DEMO_MODE ? fail(e) : showLogin(e.message)));
 }
 
+// Без связи показываем данные, сохранённые на телефоне при последней удачной загрузке.
+let offlineSince = 0;
 async function load() {
-  D = await api.getData();
+  try {
+    D = await api.getData();
+    offlineSince = 0;
+    if (!DEMO_MODE) idb('put', 'data', JSON.stringify({ at: Date.now(), d: D }));
+  } catch (e) {
+    const saved = e.offline && parse(await idb('get', 'data'));
+    if (!saved) throw e;
+    D = saved.d;
+    offlineSince = saved.at;
+  }
+  showOffline();
   D.alcoholCats = D.alcoholCats || [];
   // Порядковые номера по дате добавления — отдельно в покупках и в алкоголе: 01, 02…
   ['', 'alcohol'].forEach(sec => D.items.filter(it => (it.section || '') === sec)
@@ -735,7 +765,7 @@ function render() {
   const all = sectionItems();
   const items = all
     .filter(it => (!cat || it.category === cat) && (!ag || Object.values(againBy(it)).includes(ag)) &&
-      (!q || [it.name, it.shop, it.description, ...Object.values(it.specs || {})].join(' ').toLowerCase().includes(q)))
+      (!q || [it.name, it.shop, it.description, it.barcode, ...Object.values(it.specs || {})].join(' ').toLowerCase().includes(q)))
     .sort(sorts[$('#fSort').value]);
   $('#list').innerHTML = items.length ? items.map(card).join('') : `<div class="empty">${emptyArt()}${
     all.length ? 'Ничего не нашлось' : `${isAlcTab() ? 'Здесь появятся ваши бутылочки' : 'Здесь появятся ваши покупочки'}<br><span class="muted" style="font:500 14px Inter,sans-serif">Нажмите «+», чтобы добавить первую</span>`}</div>`;
@@ -760,15 +790,32 @@ function card(it) {
   </div>`;
 }
 
-// Фото приватные, поэтому миниатюры приходят с сервера пачками и кэшируются.
+const parse = s => { try { return s ? JSON.parse(s) : null; } catch (e) { return null; } };
+
+function showOffline() {
+  const box = $('#offline');
+  if (!offlineSince) { box.hidden = true; return; }
+  const when = new Date(offlineSince).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  box.innerHTML = `<span>📴 Нет связи — показаны данные от ${esc(when)}. Добавлять и оценивать можно, когда появится интернет.</span><button class="btn" id="offRetry">Обновить</button>`;
+  box.hidden = false;
+  $('#offRetry').onclick = busy(async () => { await load(); if (offlineSince) toast('Связи всё ещё нет'); });
+}
+window.addEventListener('online', () => { if (offlineSince) load().catch(() => {}); });
+
+// Фото приватные, поэтому миниатюры приходят с сервера пачками. Кэш — в памяти и на телефоне (для просмотра без интернета).
 async function loadThumbs() {
   const imgs = () => [...document.querySelectorAll('img[data-thumb]')];
   const fill = () => imgs().forEach(img => { const s = thumbs[img.dataset.thumb]; if (s && !img.getAttribute('src')) img.src = s; });
   fill();
-  const need = [...new Set(imgs().map(i => i.dataset.thumb))].filter(id => !(id in thumbs));
+  let need = [...new Set(imgs().map(i => i.dataset.thumb))].filter(id => !(id in thumbs));
   need.forEach(id => { thumbs[id] = ''; });
+  const saved = await Promise.all(need.map(id => idb('get', 't:' + id)));
+  need.forEach((id, i) => { if (saved[i]) thumbs[id] = saved[i]; });
+  fill();
+  need = need.filter(id => !thumbs[id]);
   for (let i = 0; i < need.length; i += 12) {
-    Object.assign(thumbs, await api.getThumbs(need.slice(i, i + 12)).catch(() => ({})));
+    const got = await api.getThumbs(need.slice(i, i + 12)).catch(() => ({}));
+    Object.entries(got).forEach(([id, src]) => { if (src) { thumbs[id] = src; if (!DEMO_MODE) idb('put', 't:' + id, src); } });
     fill();
   }
 }
@@ -924,6 +971,137 @@ function autoNumber(ta, startList) {
   });
 }
 
+/* ---------- Сканер штрихкода ---------- */
+
+const BARCODE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 8v8 M10 8v8 M13 8v8 M16 8v8"/></svg>';
+
+// Встроенный сканер есть в Chrome на Android; на iPhone подгружаем библиотеку (zxing, WebAssembly).
+let detectorPromise = null;
+function getDetector() {
+  return detectorPromise || (detectorPromise = (async () => {
+    const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'];
+    if ('BarcodeDetector' in window) {
+      try {
+        const ok = await BarcodeDetector.getSupportedFormats();
+        if (ok.includes('ean_13')) return new BarcodeDetector({ formats: formats.filter(f => ok.includes(f)) });
+      } catch (e) { /* возьмём библиотеку */ }
+    }
+    if (!window.BarcodeDetectionAPI) {
+      await new Promise((ok, no) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/dist/iife/ponyfill.js';
+        s.onload = ok;
+        s.onerror = () => no(new Error('Не удалось загрузить сканер — нужен интернет'));
+        document.head.appendChild(s);
+      });
+    }
+    return new window.BarcodeDetectionAPI.BarcodeDetector({ formats });
+  })().catch(e => { detectorPromise = null; throw e; }));
+}
+
+// Открывает камеру и ждёт штрихкод. Возвращает строку цифр или null, если закрыли.
+// Если живая камера недоступна, предлагает сфотографировать штрихкод.
+async function scanBarcode() {
+  const detector = await getDetector();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return scanFromPhoto(detector);
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false });
+  } catch (e) {
+    toast('Нет доступа к камере — сфотографируйте штрихкод');
+    return scanFromPhoto(detector);
+  }
+  return new Promise(done => {
+    const box = document.createElement('div');
+    box.className = 'scanner';
+    box.innerHTML = `<video playsinline muted autoplay></video><div class="scan-frame"></div>
+      <div class="scan-hint">Наведите камеру на штрихкод</div><button type="button" class="close" title="Закрыть">×</button>`;
+    document.body.appendChild(box);
+    const video = box.querySelector('video');
+    video.srcObject = stream;
+    let alive = true;
+    const finish = code => {
+      if (!alive) return;
+      alive = false;
+      stream.getTracks().forEach(t => t.stop());
+      box.remove();
+      if (code && navigator.vibrate) navigator.vibrate(60);
+      done(code);
+    };
+    box.querySelector('.close').onclick = () => finish(null);
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        if (video.readyState >= 2) {
+          const found = await detector.detect(video);
+          const code = found.map(f => f.rawValue).find(v => /^\d{6,}$/.test(v)) || (found[0] && found[0].rawValue);
+          if (code) return finish(String(code).trim());
+        }
+      } catch (e) { /* кадр не распознан — пробуем следующий */ }
+      setTimeout(tick, 250);
+    };
+    tick();
+  });
+}
+
+function scanFromPhoto(detector) {
+  return new Promise(done => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return done(null);
+      try {
+        const found = await detector.detect(await createImageBitmap(file));
+        if (found[0]) return done(String(found[0].rawValue).trim());
+      } catch (e) { /* ниже — сообщение */ }
+      toast('Штрихкод не распознан — попробуйте ещё раз, поближе и при хорошем свете');
+      done(null);
+    };
+    input.click();
+  });
+}
+
+// Название товара по штрихкоду из открытой базы Open Food Facts (лучше всего — продукты и напитки).
+async function lookupBarcode(code) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name_ru,product_name,brands,quantity,categories_tags`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    const j = await res.json();
+    const p = j.status === 1 && j.product;
+    if (!p) return null;
+    const title = p.product_name_ru || p.product_name || '';
+    const brand = (p.brands || '').split(',')[0].trim();
+    const name = brand && title && !title.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${title}` : title || brand;
+    if (!name) return null;
+    const alcohol = (p.categories_tags || []).some(t => /alcoholic-beverages|wines|beers|spirits|ciders|liqueurs/.test(t));
+    return { name: name.trim(), volume: (p.quantity || '').trim(), alcohol };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Кнопка в списке: отсканировать товар в магазине и сразу понять — покупали ли уже.
+const scanAndFind = busy(async () => {
+  const code = await scanBarcode();
+  if (!code) return;
+  const known = D.items.find(x => x.barcode === code);
+  if (known) {
+    setTab(sectionOf(known) === 'alcohol' ? 'alcohol' : 'items');
+    showItem(known.id);
+    toast('Вы это уже покупали 👀');
+    return;
+  }
+  if (offlineSince) { toast(`Штрихкод ${code}: такого у нас ещё нет`); return; }
+  const info = await lookupBarcode(code);
+  toast(info ? `Ещё не покупали: ${info.name}` : 'Такого у нас ещё нет — добавим?');
+  showForm(null, { barcode: code, name: info ? info.name : '', volume: info ? info.volume : '', section: info && info.alcohol ? 'alcohol' : '' });
+});
+
 /* ---------- Фото в формах (покупки и рецепты) ---------- */
 
 const photoFields = () => `<label class="cap">Фото</label><div class="gallery" id="fPh"></div>
@@ -970,18 +1148,24 @@ async function uploadNewPhotos(photos) {
   }
 }
 
-function showForm(it) {
+// prefill — для новой записи после сканирования: { barcode, name, volume, section }.
+function showForm(it, prefill = {}) {
   const isNew = !it;
-  const section = it ? sectionOf(it) : isAlcTab() ? 'alcohol' : '';
+  const section = it ? sectionOf(it) : prefill.section || (isAlcTab() ? 'alcohol' : '');
   const alc = section === 'alcohol';
   const cats = catsFor(section);
-  it = it || { id: '', name: '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '', photos: [], offers: [], specs: {} };
+  it = it || { id: '', name: prefill.name || '', url: '', shop: '', bought: today(), price: '', currency: CURRENCIES[0], category: cats[0] || '', description: '',
+    photos: [], offers: [], specs: prefill.volume ? { volume: prefill.volume } : {}, barcode: prefill.barcode || '' };
   const photos = it.photos.slice();
+  let barcode = it.barcode || '';
   const title = alc ? 'Новая бутылочка' : 'Новая покупочка';
 
   modal(isNew ? (alc ? '🍷 ' : '') + title : `№${it.no} · Редактирование`, `
     <h2>${isNew ? title : esc(it.name)}</h2>
-    <label class="cap" for="fName">Название *</label><input id="fName" value="${esc(it.name)}" placeholder="${alc ? 'Например, Chianti Classico' : 'Например, льняная рубашка'}">
+    <label class="cap" for="fName">Название *</label>
+    <div class="name-row"><input id="fName" value="${esc(it.name)}" placeholder="${alc ? 'Например, Chianti Classico' : 'Например, льняная рубашка'}">
+      <button type="button" class="scan-btn" id="fScan" title="Сканировать штрихкод">${BARCODE_ICON}</button></div>
+    <div class="muted barcode-line" id="fBarcode"></div>
     ${photoFields()}
     ${alc ? `<div class="sec"><div class="cap"><span>Характеристики</span><span class="muted">по желанию</span></div>
       <div class="specs-form">${SPECS.map(([k, label, hint]) => `<div${k === 'style' || k === 'pairing' ? ' class="wide"' : ''}>
@@ -1005,6 +1189,24 @@ function showForm(it) {
   `);
 
   autoNumber($('#fDesc'));
+  // Штрихкод: показываем, предупреждаем, если такой товар уже есть, и подставляем название из базы.
+  const drawBarcode = () => {
+    const dup = barcode && D.items.find(x => x.barcode === barcode && x.id !== it.id);
+    $('#fBarcode').innerHTML = barcode ? `Штрихкод ${esc(barcode)} ✓${dup ? ` · <b>уже есть:</b> <a href="#" id="fDup">${esc(dup.name)}</a>` : ''}` : '';
+    if ($('#fDup')) $('#fDup').onclick = e => { e.preventDefault(); showItem(dup.id); };
+  };
+  drawBarcode();
+  $('#fScan').onclick = busy(async () => {
+    const code = await scanBarcode();
+    if (!code) return;
+    barcode = code;
+    drawBarcode();
+    const info = await lookupBarcode(code);
+    if (!info) { toast('В базе такого товара нет — впишите название сами'); return; }
+    if (!$('#fName').value.trim()) $('#fName').value = info.name;
+    if (info.volume && $('#sp_volume') && !$('#sp_volume').value) $('#sp_volume').value = info.volume;
+    toast('Нашли: ' + info.name);
+  });
   $('#addOffer').onclick = () => {
     $('#offerRows').insertAdjacentHTML('beforeend', offerRow({ currency: $('#fCur').value }));
     $('#offerRows').lastElementChild.querySelector('.oShop').focus();
@@ -1025,7 +1227,7 @@ function showForm(it) {
     await uploadNewPhotos(photos);
     const id = await api.saveItem({
       id: it.id, name, url: $('#fUrl').value, shop: $('#fShop').value, bought: $('#fDate').value, price: $('#fPrice').value,
-      currency: $('#fCur').value, category: $('#fCatS').value, section,
+      currency: $('#fCur').value, category: $('#fCatS').value, section, barcode,
       specs: Object.fromEntries([...document.querySelectorAll('[data-spec]')].map(i => [i.dataset.spec, i.value.trim()]).filter(([, v]) => v)),
       description: $('#fDesc').value, photos,
       offers: [...document.querySelectorAll('#offerRows .offer-row')].map(r => ({
@@ -1050,7 +1252,17 @@ function showProfile() {
       <input id="nName" maxlength="24" value="${esc(D.me)}" autocomplete="nickname" aria-label="Имя">
       <p class="muted">Имя видно в оценках и комментариях. Всё, что ты уже добавил(а) и оценил(а), останется твоим.</p>
       <div class="btns"><button class="btn" id="nSave">Сохранить имя</button></div></div>
-    <div class="sec"><div class="cap"><span>Уведомления</span><span>🔔</span></div><div id="pushBody" class="muted">Проверяем…</div></div>`);
+    <div class="sec"><div class="cap"><span>Уведомления</span><span>🔔</span></div><div id="pushBody" class="muted">Проверяем…</div></div>
+    <div class="sec"><div class="cap"><span>Напоминания</span><span>🗓</span></div>
+      <p class="muted" style="margin:0 0 10px">Раз в день вечером: если покупка ${esc(partner())} ждёт вашей оценки, а иногда — «может, повторим?» про любимое. Приходят как уведомления.</p>
+      <button type="button" class="switch ${D.remindersOn !== false ? 'on' : ''}" id="remSwitch">${D.remindersOn !== false ? '✓ Включены' : 'Выключены'}</button></div>`);
+  $('#remSwitch').onclick = busy(async () => {
+    const on = D.remindersOn === false;
+    await api.setReminders(on);
+    D.remindersOn = on;
+    toast(on ? 'Напоминания включены' : 'Напоминания выключены');
+    showProfile();
+  });
   $('#nSave').onclick = busy(async () => {
     const name = $('#nName').value.trim();
     if (!name) { toast('Введите имя'); return; }
@@ -1194,7 +1406,7 @@ const DEMO = (() => {
         reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Эффект': 5, 'Запах': 5, 'Текстура': 4 } }], comments: [] },
       { id: 'd4', created: day(1), author: 'Я', name: 'Керамическая ваза', url: '', shop: 'IKEA', bought: day(7).slice(0, 10), price: 1499, currency: '₽', category: 'Дом', description: '', photos: [],
         reviews: [{ author: 'Сонюшка', again: 'Нет', ratings: { 'Качество': 3, 'Внешний вид': 4 } }, { author: 'Я', again: 'Да', ratings: {} }], comments: [] },
-      { id: 'd5', created: day(0.5), author: 'Сонюшка', name: 'Мёд с фундуком', url: '', shop: 'ВкусВилл', bought: day(3).slice(0, 10), price: 690, currency: '₽', category: 'Еда', description: '', photos: [],
+      { id: 'd5', created: day(0.5), author: 'Сонюшка', name: 'Мёд с фундуком', url: '', barcode: '4601234567890', shop: 'ВкусВилл', bought: day(3).slice(0, 10), price: 690, currency: '₽', category: 'Еда', description: '', photos: [],
         reviews: [{ author: 'Сонюшка', again: 'Да', ratings: { 'Вкус': 5, 'Качество': 5 } }], comments: [] },
       { id: 'a1', created: day(2.5), author: 'Сонюшка', name: 'Chianti Classico', url: '', shop: 'Ароматный мир', bought: day(9).slice(0, 10), price: 1890, currency: '₽', category: 'Вино', description: 'Брали к пасте, очень мягкое.', photos: [], section: 'alcohol',
         specs: { style: 'красное сухое, Санджовезе', abv: '13%', volume: '0,75 л', origin: 'Италия, Тоскана', year: '2021', pairing: 'паста, сыры' },
@@ -1216,7 +1428,7 @@ const DEMO = (() => {
   const find = id => db.items.find(x => x.id === id);
   return {
     getData: () => ({
-      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items, recipes: db.recipes, alcoholCats: ['Вино', 'Игристое', 'Пиво и сидр', 'Крепкое', 'Ликёры', 'Другой алкоголь'],
+      me, members, again: ['Да', 'Возможно', 'Нет'], items: db.items, recipes: db.recipes, remindersOn: true, alcoholCats: ['Вино', 'Игристое', 'Пиво и сидр', 'Крепкое', 'Ликёры', 'Другой алкоголь'],
       criteria: { 'Одежда': ['Качество', 'Посадка', 'Внешний вид', 'Удобство', 'Цена/качество'], 'Обувь': ['Удобство', 'Качество', 'Внешний вид', 'Цена/качество'], 'Техника': ['Функциональность', 'Качество сборки', 'Дизайн', 'Удобство', 'Цена/качество'], 'Дом': ['Качество', 'Внешний вид', 'Практичность', 'Цена/качество'], 'Косметика': ['Эффект', 'Запах', 'Текстура', 'Цена/качество'], 'Еда': ['Вкус', 'Качество', 'Цена/качество'], 'Другое': ['Качество', 'Внешний вид', 'Полезность', 'Цена/качество'], 'Вино': ['Вкус', 'Аромат', 'Послевкусие', 'Баланс', 'Цена/качество'], 'Игристое': ['Вкус', 'Аромат', 'Перляж', 'Свежесть', 'Цена/качество'], 'Пиво и сидр': ['Вкус', 'Аромат', 'Освежает', 'Послевкусие', 'Цена/качество'], 'Крепкое': ['Вкус', 'Аромат', 'Мягкость', 'Послевкусие', 'Цена/качество'], 'Ликёры': ['Вкус', 'Аромат', 'Баланс сладости', 'Цена/качество'], 'Другой алкоголь': ['Вкус', 'Аромат', 'Послевкусие', 'Цена/качество'] },
     }),
     saveItem: d => {
@@ -1250,6 +1462,7 @@ const DEMO = (() => {
       return r.id;
     },
     deleteRecipe: id => { db.recipes = db.recipes.filter(x => x.id !== id); },
+    setReminders: () => {},
   };
 })();
 

@@ -54,7 +54,7 @@ const SCHEMA = {
     ['category', 'Категория'], ['again', 'Купили бы снова'], ['description', 'Описание'],
     ['avg', 'Средняя оценка'], ['photoLinks', 'Фото'], ['photos', '_photos'],
     ['offersText', 'Цены в других магазинах'], ['offers', '_offers'],
-    ['section', 'Раздел'], ['specsText', 'Характеристики'], ['specs', '_specs']],
+    ['section', 'Раздел'], ['specsText', 'Характеристики'], ['specs', '_specs'], ['barcode', 'Штрихкод']],
   reviews: [['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'], ['updated', 'Обновлено'],
     ['avg', 'Средняя'], ['ratingsText', 'Оценки'], ['ratings', '_ratings'], ['again', 'Купил(а) бы снова']],
   comments: [['id', 'ID'], ['itemId', 'ID товара'], ['itemName', 'Товар'], ['author', 'Автор'],
@@ -69,7 +69,7 @@ const SCHEMA = {
 
 // Функции, которые может вызывать сайт.
 const API = { getData, saveItem, deleteItem, saveReview, addComment, deleteComment, uploadPhoto, getThumbs, getPhoto, renameMe,
-  savePush, removePush, getNews, testPush, saveRecipe, deleteRecipe };
+  savePush, removePush, getNews, testPush, saveRecipe, deleteRecipe, setReminders };
 let currentUser = null;
 
 function doGet() {
@@ -156,7 +156,7 @@ function getData() {
       bought: it.bought ? String(it.bought).slice(0, 10) : '',
       price: it.price, currency: it.currency, category: it.category, again: it.again,
       description: it.description, photos: parse_(it.photos, []), offers: parse_(it.offers, []), reviews: [], comments: [],
-      section: it.section || '', specs: parse_(it.specs, {}),
+      section: it.section || '', specs: parse_(it.specs, {}), barcode: it.barcode ? String(it.barcode) : '',
     };
     byId[it.id] = out;
     return out;
@@ -172,7 +172,8 @@ function getData() {
     ingredients: parse_(r.ingredients, []), photos: parse_(r.photos, []),
   }));
   return { me: user.name, members: members_(), criteria, again: AGAIN, items, recipes, pushKey: vapidKeys_().pub,
-    alcoholCats: ALCOHOL_CRITERIA.map(c => c[0]) };
+    alcoholCats: ALCOHOL_CRITERIA.map(c => c[0]),
+    remindersOn: !PropertiesService.getScriptProperties().getProperty('REMIND_OFF_' + user.name) };
 }
 
 /** Один раз дописывает категории алкоголя на лист «Критерии» — дальше их можно править там. */
@@ -269,6 +270,8 @@ function saveItem(d) {
     it.offersText = offers.map(o => (o.shop || '?') + ': ' + (o.price !== '' ? o.price + ' ' + o.currency : '—')).join('; ');
 
     // Раздел «Алкоголь» и его характеристики (крепость, объём, год…).
+    // Штрихкод (только цифры) — чтобы в магазине по сканеру найти, что это уже покупали.
+    it.barcode = String(d.barcode || '').replace(/\D/g, '').slice(0, 20);
     it.section = d.section === 'alcohol' ? 'alcohol' : '';
     const specs = {};
     if (it.section) SPECS.forEach(([k]) => { const v = String((d.specs || {})[k] || '').trim().slice(0, 80); if (v) specs[k] = v; });
@@ -425,7 +428,7 @@ function renameMe(newName) {
         .map(s => (s.indexOf(user.name + ': ') === 0 ? newName + s.slice(user.name.length) : s)).join(', ')]));
     }
     // Ключ входа, подписки на уведомления и отметка «что уже показано» переезжают на новое имя.
-    ['KEY_', 'SUBS_', 'SEEN_'].forEach(prefix => {
+    ['KEY_', 'SUBS_', 'SEEN_', 'REMIND_OFF_', 'REMINDED_', 'LASTFAV_'].forEach(prefix => {
       const v = props.getProperty(prefix + user.name);
       if (v !== null) props.setProperty(prefix + newName, v);
       props.deleteProperty(prefix + user.name);
@@ -479,7 +482,7 @@ function getNews() {
   const e = events.find(x => x.t > seen) || events[events.length - 1];
   if (!e) return null;
   props.setProperty('SEEN_' + user.name, String(Math.max(seen, e.t)));
-  const what = { item: 'новая покупочка', alcohol: 'новая бутылочка 🍷', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', news: 'что нового ✨', test: 'проверка' }[e.type] || 'что-то новое';
+  const what = { item: 'новая покупочка', alcohol: 'новая бутылочка 🍷', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', news: 'что нового ✨', remind: 'напоминание', favorite: 'может, повторим? 💛', test: 'проверка' }[e.type] || 'что-то новое';
   const body = e.type === 'comment' ? e.name + ' — «' + e.text + '»' : e.text ? e.name + ' — ' + e.text : e.name;
   const url = e.recipeId ? './?recipe=' + encodeURIComponent(e.recipeId) : e.itemId ? './?item=' + encodeURIComponent(e.itemId) : './';
   return { title: e.author + ': ' + what, body, tag: e.type + '-' + e.t, url };
@@ -557,6 +560,59 @@ function vapidJwt_(aud, privHex) {
 const ANNOUNCEMENT = 'Новое: вкладка 🍷 Алкоголь и фото в комментариях 📷';
 
 /** Рассылает обоим уведомление «Покупочки: что нового ✨» с текстом ANNOUNCEMENT. */
+/* ---------- Напоминания (раз в день, по триггеру) ---------- */
+
+function setReminders(on) {
+  const user = me_();
+  const props = PropertiesService.getScriptProperties();
+  if (on) props.deleteProperty('REMIND_OFF_' + user.name);
+  else props.setProperty('REMIND_OFF_' + user.name, '1');
+}
+
+/**
+ * Каждому — не больше одного напоминания в день:
+ * 1) покупка партнёра ждёт вашей оценки дольше суток (про каждую напоминаем один раз);
+ * 2) иначе раз в неделю — «может, повторим?» про любимую покупку, купленную больше месяца назад.
+ */
+function dailyReminders() {
+  const props = PropertiesService.getScriptProperties();
+  const items = read_('items'), reviews = read_('reviews');
+  const day = 864e5, now = Date.now();
+  members_().forEach(name => {
+    if (props.getProperty('REMIND_OFF_' + name) || !parse_(props.getProperty('SUBS_' + name), []).length) return;
+    try {
+      const reminded = parse_(props.getProperty('REMINDED_' + name), []);
+      const waiting = items.filter(it => it.author !== name && reminded.indexOf(it.id) < 0 &&
+        now - new Date(it.created).getTime() > day && !reviews.some(r => r.itemId === it.id && r.author === name))
+        .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
+      if (waiting) {
+        props.setProperty('REMINDED_' + name, JSON.stringify(reminded.concat(waiting.id).slice(-300)));
+        notify_({ type: 'remind', author: 'Покупочки', to: name, itemId: waiting.id, name: waiting.name, text: waiting.author + ' ждёт вашу оценку' }, [name]);
+        return;
+      }
+      if (now - Number(props.getProperty('LASTFAV_' + name) || 0) < 7 * day) return;
+      const favs = items.filter(it => {
+        const mine = reviews.find(r => r.itemId === it.id && r.author === name);
+        const old = now - new Date(it.bought || it.created).getTime() > 30 * day;
+        return old && (Number(it.avg) >= 4.5 || (mine && mine.again === 'Да'));
+      });
+      if (!favs.length) return;
+      const fav = favs[Math.floor(Math.random() * favs.length)];
+      props.setProperty('LASTFAV_' + name, String(now));
+      notify_({ type: 'favorite', author: 'Покупочки', to: name, itemId: fav.id, name: fav.name, text: fav.avg ? 'оценка ' + fav.avg + ' из 5' : 'вам понравилось' }, [name]);
+    } catch (e) {
+      console.error('Напоминание для ' + name + ' не отправлено: ' + e);
+    }
+  });
+}
+
+/** Запустите один раз в редакторе: напоминания будут приходить каждый день около 19:00. */
+function setupReminders() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'dailyReminders').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('dailyReminders').timeBased().everyDays(1).atHour(19).create();
+  Logger.log('Готово: напоминания каждый день около 19:00 (часовой пояс скрипта: ' + Session.getScriptTimeZone() + ').');
+}
+
 function announce() {
   const sent = notify_({ type: 'news', author: 'Покупочки', name: ANNOUNCEMENT }, members_());
   Logger.log('Объявление отправлено на устройств: ' + sent);
@@ -722,7 +778,8 @@ function read_(key) {
 }
 
 function write_(key, o) {
-  const row = SCHEMA[key].map(c => cell_(o[c[0]]));
+  // Штрихкод пишем текстом (с апострофом), иначе таблица сделает из него число и потеряет нули в начале.
+  const row = SCHEMA[key].map(c => (c[0] === 'barcode' && o.barcode ? "'" + String(o.barcode).replace(/^'/, '') : cell_(o[c[0]])));
   const sh = sheet_(key);
   // Столбцы, добавленные в схему после создания листа, получают заголовок при первой записи.
   const had = sh.getLastColumn();
