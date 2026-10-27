@@ -479,7 +479,7 @@ function getNews() {
   const e = events.find(x => x.t > seen) || events[events.length - 1];
   if (!e) return null;
   props.setProperty('SEEN_' + user.name, String(Math.max(seen, e.t)));
-  const what = { item: 'новая покупочка', alcohol: 'новая бутылочка 🍷', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', test: 'проверка' }[e.type] || 'что-то новое';
+  const what = { item: 'новая покупочка', alcohol: 'новая бутылочка 🍷', comment: 'новый комментарий', review: 'оценка вашей покупочки', recipe: 'новый рецепт', news: 'что нового ✨', test: 'проверка' }[e.type] || 'что-то новое';
   const body = e.type === 'comment' ? e.name + ' — «' + e.text + '»' : e.text ? e.name + ' — ' + e.text : e.name;
   const url = e.recipeId ? './?recipe=' + encodeURIComponent(e.recipeId) : e.itemId ? './?item=' + encodeURIComponent(e.itemId) : './';
   return { title: e.author + ': ' + what, body, tag: e.type + '-' + e.t, url };
@@ -553,6 +553,15 @@ function vapidJwt_(aud, privHex) {
 }
 
 /** Запустите один раз в редакторе: создаст ключи уведомлений и попросит разрешение на отправку запросов. */
+// Текст объявления о новых функциях. Поменяйте и запустите announce() из редактора.
+const ANNOUNCEMENT = 'Новое: вкладка 🍷 Алкоголь и фото в комментариях 📷';
+
+/** Рассылает обоим уведомление «Покупочки: что нового ✨» с текстом ANNOUNCEMENT. */
+function announce() {
+  const sent = notify_({ type: 'news', author: 'Покупочки', name: ANNOUNCEMENT }, members_());
+  Logger.log('Объявление отправлено на устройств: ' + sent);
+}
+
 function setupPush() {
   Logger.log('Публичный ключ уведомлений: ' + vapidKeys_().pub);
   UrlFetchApp.fetch('https://web.push.apple.com/', { muteHttpExceptions: true });
