@@ -765,6 +765,8 @@ function sheet_(key) {
   return sh;
 }
 
+const ID_COLS = ['id', 'itemId'];
+
 function read_(key) {
   const cols = SCHEMA[key].map(c => c[0]);
   const sh = sheet_(key);
@@ -773,13 +775,17 @@ function read_(key) {
   return sh.getRange(2, 1, n, cols.length).getValues().map((r, i) => {
     const o = { _row: i + 2 };
     cols.forEach((c, j) => { o[c] = r[j] instanceof Date ? r[j].toISOString() : r[j]; });
+    // ID всегда текст: таблица могла превратить ID из одних цифр (например, 6385320713) в число.
+    ID_COLS.forEach(c => { if (c in o) o[c] = o[c] === '' || o[c] == null ? '' : String(o[c]); });
     return o;
   });
 }
 
 function write_(key, o) {
   // Штрихкод пишем текстом (с апострофом), иначе таблица сделает из него число и потеряет нули в начале.
-  const row = SCHEMA[key].map(c => (c[0] === 'barcode' && o.barcode ? "'" + String(o.barcode).replace(/^'/, '') : cell_(o[c[0]])));
+  // ID тоже пишем текстом: иначе ID из одних цифр таблица сохранит как число, и товар нельзя будет открыть.
+  const asText = c => (c[0] === 'barcode' || ID_COLS.indexOf(c[0]) >= 0) && o[c[0]] !== '' && o[c[0]] != null;
+  const row = SCHEMA[key].map(c => (asText(c) ? "'" + String(o[c[0]]).replace(/^'/, '') : cell_(o[c[0]])));
   const sh = sheet_(key);
   // Столбцы, добавленные в схему после создания листа, получают заголовок при первой записи.
   const had = sh.getLastColumn();
@@ -822,6 +828,7 @@ function avg_(vals) {
   return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : '';
 }
 
+// Новый ID всегда начинается с буквы — тогда таблица точно не примет его за число.
 function newId_() {
-  return Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+  return 'abcdef'[Math.floor(Math.random() * 6)] + Utilities.getUuid().replace(/-/g, '').slice(0, 9);
 }
