@@ -551,6 +551,9 @@ async function load() {
   }
   showOffline();
   D.alcoholCats = D.alcoholCats || [];
+  // ID всегда текст: в старых данных ID из одних цифр мог прийти числом, и карточка не открывалась.
+  D.items.forEach(it => { it.id = String(it.id); });
+  (D.recipes || []).forEach(r => { r.id = String(r.id); r.ingredients.forEach(i => { i.itemId = String(i.itemId || ''); }); });
   // Порядковые номера по дате добавления — отдельно в покупках и в алкоголе: 01, 02…
   ['', 'alcohol'].forEach(sec => D.items.filter(it => (it.section || '') === sec)
     .sort((a, b) => String(a.created).localeCompare(String(b.created))).forEach((it, i) => { it.no = pad(i + 1); }));
